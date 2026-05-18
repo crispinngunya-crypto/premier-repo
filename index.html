@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F6E56" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sales Tracker" />
+  <meta name="description" content="Track your daily sales and expenses — synced in real time" />
+  <title>Sales Tracker ☁️</title>
+
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tablericons/3.19.0/webfont/tabler-icons.min.css" />
+
+  <style>
+    :root {
+      --color-text-primary: #111827;
+      --color-text-secondary: #6B7280;
+      --color-text-tertiary: #9CA3AF;
+      --color-text-success: #065F46;
+      --color-text-danger: #991B1B;
+      --color-text-info: #1D4ED8;
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #F9FAFB;
+      --color-background-success: #ECFDF5;
+      --color-background-danger: #FEF2F2;
+      --color-border-primary: #D1D5DB;
+      --color-border-secondary: #E5E7EB;
+      --color-border-tertiary: #F3F4F6;
+      --color-border-danger: #FCA5A5;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --border-radius-sm: 6px;
+      --border-radius-md: 10px;
+      --border-radius-lg: 14px;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--color-background-primary);
+      color: var(--color-text-primary);
+      font-family: var(--font-sans);
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #root {
+      min-height: 100dvh;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+
+    .safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes slideUp  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes shake    { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+
+    .fade-in    { animation: slideUp 0.2s ease; }
+    .shake      { animation: shake 0.35s ease; }
+
+    .entry-row:hover, .entry-row:active { background: var(--color-background-secondary) !important; }
+    .btn-tap:active { transform: scale(0.97); }
+
+    .tab-btn {
+      flex: 1; padding: 8px 4px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: 11px; font-weight: 500;
+      border-bottom: 2px solid transparent;
+      color: var(--color-text-secondary);
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .tab-btn.active { color: #0F6E56; border-color: #0F6E56; }
+
+    .pill-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 500;
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-secondary);
+      color: var(--color-text-primary);
+    }
+    .low-badge  { display:inline-block; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:600; background:#FEF3C7; color:#92400E; }
+    .out-badge  { display:inline-block; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:600; background:#FEE2E2; color:#991B1B; }
+
+    input, select, textarea {
+      padding: 10px 12px;
+      border-radius: var(--border-radius-md);
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-primary);
+      color: var(--color-text-primary);
+      font-size: 14px; outline: none;
+      width: 100%; font-family: var(--font-sans);
+    }
+    input:focus, select:focus {
+      border-color: #0F6E56;
+      box-shadow: 0 0 0 2px rgba(15,110,86,0.12);
+    }
+
+    .section-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin: 0 0 6px;
+    }
+    .card {
+      background: var(--color-background-secondary);
+      border-radius: var(--border-radius-md);
+      padding: 14px;
+    }
+    .progress-bar  { height:6px; border-radius:3px; background:var(--color-border-tertiary); overflow:hidden; margin-top:6px; }
+    .progress-fill { height:100%; border-radius:3px; background:#0F6E56; transition:width 0.4s ease; }
+
+    .pin-key {
+      width: 64px; height: 56px;
+      border-radius: var(--border-radius-md);
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-secondary);
+      cursor: pointer; font-size: 18px; font-weight: 600;
+      color: var(--color-text-primary);
+      font-family: var(--font-sans);
+      transition: all 0.1s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pin-key:active { transform: scale(0.93); background: var(--color-border-secondary); }
+    .pin-key.danger { border-color: var(--color-border-danger); color: var(--color-text-danger); }
+
+    .sync-dot {
+      width:8px; height:8px; border-radius:50%; background:#10B981;
+      display:inline-block; margin-right:5px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .sync-dot.offline { background:#EF4444; animation:none; }
+  </style>
+</head>
+<body>
+
+<!-- Connecting splash -->
+<div id="setup-screen" style="display:flex;align-items:center;justify-content:center;min-height:100dvh;font-family:sans-serif;">
+  <div style="text-align:center;padding:40px 24px;">
+    <div style="font-size:48px;margin-bottom:12px;">💹</div>
+    <div style="width:28px;height:28px;border:2px solid #E5E7EB;border-top:2px solid #0F6E56;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+    <p style="margin:0;font-size:14px;color:#6B7280;">Connecting to cloud…</p>
+  </div>
+</div>
+
+<!-- Main app (hidden until Firebase connected) -->
+<div id="app-screen" style="display:none;">
+  <!-- Sync status bar -->
+  <div id="sync-bar" style="background:#F0FDF4;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid #D1FAE5;max-width:460px;margin:0 auto;">
+    <span style="font-size:11px;color:#065F46;font-weight:600;display:flex;align-items:center;">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">Connected — real-time sync on</span>
+    </span>
+
+  </div>
+  <div id="root"></div>
+</div>
+
+<!-- React + Babel + Firebase -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ── Pre-configured for Premier Sales Tracker ──
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyB9ksaO6V8PCSdd3QNOA_CLsixuzSpYCyU",
+    authDomain:        "premier-sales-tracker.firebaseapp.com",
+    projectId:         "premier-sales-tracker",
+    storageBucket:     "premier-sales-tracker.firebasestorage.app",
+    messagingSenderId: "19150349207",
+    appId:             "1:19150349207:android:108dd041217aff6e439ad2",
+    databaseURL:       "https://premier-sales-tracker-default-rtdb.europe-west1.firebasedatabase.app"
+  };
+
+  window._fbDb = null;
+  window._firebaseReady = false;
+
+  window._fb = {
+    async get(key) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      const snap = await getDoc(ref);
+      return snap.exists() ? { key, value: JSON.stringify(snap.data().v) } : null;
+    },
+    async set(key, value) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      await setDoc(ref, { v: JSON.parse(value) });
+      return { key, value };
+    },
+    async delete(key) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      await setDoc(ref, { v: null });
+      return { key, deleted: true };
+    },
+    subscribe(key, callback) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      return onSnapshot(ref, (snap) => {
+        callback(snap.exists() ? JSON.stringify(snap.data().v) : null);
+      });
+    }
+  };
+
+  function launchApp() {
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "block";
+    window.storage = window._fb;
+    window._firebaseReady = true;
+    window._startReact && window._startReact();
+  }
+
+  // Auto-connect on load — no setup needed
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    window._fbDb = getFirestore(app);
+    window._firebaseReady = true;
+    launchApp();
+  } catch(e) {
+    document.getElementById("setup-screen").innerHTML =
+      `<div style="padding:40px 24px;text-align:center;font-family:sans-serif;">
+        <p style="font-size:32px;">⚠️</p>
+        <p style="font-size:16px;font-weight:700;">Could not connect to Firebase</p>
+        <p style="font-size:13px;color:#6B7280;">${e.message}</p>
+        <p style="font-size:12px;color:#9CA3AF;">Make sure Firestore is enabled in the Firebase console (Build → Firestore Database → Create database → test mode).</p>
+      </div>`;
+  }
+</script>
+
+<script type="text/babel">
+  const { useState, useEffect, useRef } = React;
+
+  const DEFAULT_CATEGORIES = {
+    sale: ["Product sale", "Service", "Subscription", "Refund received", "Other income"],
+    expense: ["Supplies", "Rent", "Utilities", "Salary", "Marketing", "Transport", "Food", "Other"],
+  };
+
+  const fmt = (n) => new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+  const dateKey = (d) => d.toISOString().slice(0, 10);
+  const displayDate = (key) => {
+    const today = dateKey(new Date());
+    const yesterday = dateKey(new Date(Date.now() - 86400000));
+    if (key === today) return "Today";
+    if (key === yesterday) return "Yesterday";
+    return new Date(key + "T12:00:00").toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" });
+  };
+
+  const SALE_GREEN = "#0F6E56";
+  const EXP_RED = "#993C1D";
+
+  function SalesTracker() {
+    const [entries, setEntries] = useState({});
+    const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+    const [inventory, setInventory] = useState([]);
+    const [currentDate, setCurrentDate] = useState(dateKey(new Date()));
+    const [view, setView] = useState("dashboard");
+    const [form, setForm] = useState({ type: "sale", amount: "", category: "", note: "" });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [deleteId, setDeleteId] = useState(null);
+    const [syncStatus, setSyncStatus] = useState("connected");
+
+    const [histGroup, setHistGroup] = useState("day");
+    const [collapsedGroups, setCollapsedGroups] = useState({});
+
+    const [catMgmt, setCatMgmt] = useState({ open: false, type: "sale", newName: "" });
+
+    const [invForm, setInvForm] = useState({ name: "", sku: "", qty: "", price: "", low: "" });
+    const [invEditId, setInvEditId] = useState(null);
+    const [invDeleteId, setInvDeleteId] = useState(null);
+    const [stockAdjId, setStockAdjId] = useState(null);
+    const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
+
+    const CLEAR_PIN = "2668";
+    const [clearAuth, setClearAuth] = useState({ unlocked: false, pin: "", error: "", attempts: 0, lockedUntil: null });
+    const [clearTarget, setClearTarget] = useState(null);
+    const [clearConfirm, setClearConfirm] = useState(false);
+    const [clearSuccess, setClearSuccess] = useState(null);
+
+    // Real-time listeners
+    const unsubscribers = useRef([]);
+
+    useEffect(() => {
+      let mounted = true;
+      const storage = window._fb;
+
+      // Set up real-time subscriptions
+      const unsub1 = storage.subscribe("entries", (raw) => {
+        if (!mounted) return;
+        setEntries(raw ? JSON.parse(raw) : {});
+      });
+      const unsub2 = storage.subscribe("categories", (raw) => {
+        if (!mounted) return;
+        setCategories(raw ? JSON.parse(raw) : DEFAULT_CATEGORIES);
+      });
+      const unsub3 = storage.subscribe("inventory", (raw) => {
+        if (!mounted) return;
+        setInventory(raw ? JSON.parse(raw) : []);
+      });
+
+      unsubscribers.current = [unsub1, unsub2, unsub3];
+
+      // Initial load
+      Promise.all([
+        storage.get("entries").catch(() => null),
+        storage.get("categories").catch(() => null),
+        storage.get("inventory").catch(() => null),
+      ]).then(([eRes, cRes, iRes]) => {
+        if (!mounted) return;
+        if (eRes) setEntries(JSON.parse(eRes.value));
+        if (cRes) setCategories(JSON.parse(cRes.value));
+        if (iRes) setInventory(JSON.parse(iRes.value));
+        setLoading(false);
+      }).catch(() => { if (mounted) setLoading(false); });
+
+      // Online/offline detection
+      const onOnline = () => { setSyncStatus("connected"); document.querySelector(".sync-dot").classList.remove("offline"); document.getElementById("sync-label").textContent = "Connected — real-time sync on"; };
+      const onOffline = () => { setSyncStatus("offline"); document.querySelector(".sync-dot").classList.add("offline"); document.getElementById("sync-label").textContent = "Offline — changes will sync when reconnected"; };
+      window.addEventListener("online", onOnline);
+      window.addEventListener("offline", onOffline);
+
+      return () => {
+        mounted = false;
+        unsubscribers.current.forEach(u => u && u());
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+      };
+    }, []);
+
+    const saveEntries = async (updated) => {
+      setEntries(updated);
+      setSaving(true);
+      try { await window._fb.set("entries", JSON.stringify(updated)); } catch {}
+      setSaving(false);
+    };
+
+    const saveCategories = async (updated) => {
+      setCategories(updated);
+      try { await window._fb.set("categories", JSON.stringify(updated)); } catch {}
+    };
+
+    const saveInventory = async (updated) => {
+      setInventory(updated);
+      try { await window._fb.set("inventory", JSON.stringify(updated)); } catch {}
+    };
+
+    const dayEntries = entries[currentDate] || [];
+    const sales = dayEntries.filter(e => e.type === "sale").reduce((s, e) => s + e.amount, 0);
+    const expenses = dayEntries.filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0);
+    const net = sales - expenses;
+
+    const allEntries = Object.values(entries).flat();
+    const saleEntries = allEntries.filter(e => e.type === "sale");
+    const totalRevenue = saleEntries.reduce((s, e) => s + e.amount, 0);
+    const productMap = {};
+    saleEntries.forEach(e => {
+      const key = e.category || "Other income";
+      if (!productMap[key]) productMap[key] = { revenue: 0, count: 0 };
+      productMap[key].revenue += e.amount;
+      productMap[key].count += 1;
+    });
+    const topProducts = Object.entries(productMap)
+      .sort((a, b) => b[1].revenue - a[1].revenue)
+      .slice(0, 5);
+
+    const addEntry = async () => {
+      if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) return;
+      const defaultCat = form.type === "sale" ? "Other income" : "Other";
+      const entry = {
+        id: Date.now().toString(),
+        type: form.type,
+        amount: parseFloat(form.amount),
+        category: form.category || defaultCat,
+        note: form.note,
+        time: new Date().toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }),
+      };
+      const updated = { ...entries, [currentDate]: [entry, ...(entries[currentDate] || [])] };
+      await saveEntries(updated);
+      setForm({ type: form.type, amount: "", category: "", note: "" });
+      setView("dashboard");
+    };
+
+    const deleteEntry = async (id) => {
+      const updated = { ...entries, [currentDate]: dayEntries.filter(e => e.id !== id) };
+      await saveEntries(updated);
+      setDeleteId(null);
+    };
+
+    const shiftDate = (days) => {
+      const d = new Date(currentDate + "T12:00:00");
+      d.setDate(d.getDate() + days);
+      setCurrentDate(dateKey(d));
+    };
+
+    const isToday = currentDate === dateKey(new Date());
+
+    const addCategory = async () => {
+      const name = catMgmt.newName.trim();
+      if (!name) return;
+      const updated = { ...categories, [catMgmt.type]: [...(categories[catMgmt.type] || []), name] };
+      await saveCategories(updated);
+      setCatMgmt(c => ({ ...c, newName: "" }));
+    };
+
+    const removeCategory = async (type, name) => {
+      const updated = { ...categories, [type]: categories[type].filter(c => c !== name) };
+      await saveCategories(updated);
+    };
+
+    const addOrUpdateInventory = async () => {
+      if (!invForm.name.trim() || !invForm.qty || isNaN(invForm.qty)) return;
+      if (invEditId) {
+        const updated = inventory.map(item =>
+          item.id === invEditId ? { ...item, name: invForm.name.trim(), sku: invForm.sku.trim(), qty: parseInt(invForm.qty), price: parseFloat(invForm.price) || 0, low: parseInt(invForm.low) || 5 } : item
+        );
+        await saveInventory(updated);
+        setInvEditId(null);
+      } else {
+        const item = { id: Date.now().toString(), name: invForm.name.trim(), sku: invForm.sku.trim(), qty: parseInt(invForm.qty), price: parseFloat(invForm.price) || 0, low: parseInt(invForm.low) || 5, history: [] };
+        await saveInventory([...inventory, item]);
+      }
+      setInvForm({ name: "", sku: "", qty: "", price: "", low: "" });
+    };
+
+    const deleteInventory = async (id) => {
+      await saveInventory(inventory.filter(i => i.id !== id));
+      setInvDeleteId(null);
+    };
+
+    const applyStockAdj = async () => {
+      const delta = parseInt(stockAdj.delta);
+      if (isNaN(delta)) return;
+      const updated = inventory.map(item => {
+        if (item.id !== stockAdjId) return item;
+        const newQty = Math.max(0, item.qty + delta);
+        const histEntry = { date: new Date().toLocaleDateString("en-KE", { month: "short", day: "numeric" }), delta, note: stockAdj.note, qty: newQty };
+        return { ...item, qty: newQty, history: [histEntry, ...(item.history || [])].slice(0, 10) };
+      });
+      await saveInventory(updated);
+      setStockAdjId(null);
+      setStockAdj({ delta: "", note: "" });
+    };
+
+    const startEdit = (item) => {
+      setInvForm({ name: item.name, sku: item.sku || "", qty: String(item.qty), price: String(item.price || ""), low: String(item.low || "") });
+      setInvEditId(item.id);
+    };
+
+    const lowStockItems = inventory.filter(i => i.qty <= (i.low || 5));
+
+    const getGroupKey = (dateStr, mode) => {
+      const d = new Date(dateStr + "T12:00:00");
+      if (mode === "day") return dateStr;
+      if (mode === "month") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (mode === "year") return `${d.getFullYear()}`;
+      if (mode === "week") {
+        const mon = new Date(d);
+        mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return `week::${mon.toISOString().slice(0, 10)}`;
+      }
+      return dateStr;
+    };
+
+    const getGroupLabel = (key, mode) => {
+      if (mode === "day") return displayDate(key);
+      if (mode === "month") {
+        const [y, m] = key.split("-");
+        return new Date(+y, +m - 1, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+      }
+      if (mode === "year") return key;
+      if (mode === "week") {
+        const monStr = key.replace("week::", "");
+        const mon = new Date(monStr + "T12:00:00");
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+        const fmtD = (d) => d.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
+        return `${fmtD(mon)} – ${fmtD(sun)}`;
+      }
+      return key;
+    };
+
+    const buildHistoryGroups = () => {
+      const flat = [];
+      Object.entries(entries).forEach(([dateStr, dayArr]) => {
+        dayArr.forEach(e => flat.push({ ...e, dateStr }));
+      });
+      flat.sort((a, b) => b.dateStr.localeCompare(a.dateStr) || b.id.localeCompare(a.id));
+      const groupMap = {};
+      const groupOrder = [];
+      flat.forEach(e => {
+        const key = getGroupKey(e.dateStr, histGroup);
+        if (!groupMap[key]) { groupMap[key] = []; groupOrder.push(key); }
+        groupMap[key].push(e);
+      });
+      return groupOrder.map(key => ({
+        key,
+        label: getGroupLabel(key, histGroup),
+        entries: groupMap[key],
+        sales: groupMap[key].filter(e => e.type === "sale").reduce((s, e) => s + e.amount, 0),
+        expenses: groupMap[key].filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0),
+      }));
+    };
+
+    const toggleGroup = (key) => setCollapsedGroups(c => ({ ...c, [key]: !c[key] }));
+
+    const deleteEntryFromHistory = async (entry) => {
+      const dayArr = (entries[entry.dateStr] || []).filter(e => e.id !== entry.id);
+      const updated = { ...entries, [entry.dateStr]: dayArr };
+      await saveEntries(updated);
+      setDeleteId(null);
+    };
+
+    const submitPin = (pin) => {
+      const now = Date.now();
+      setClearAuth(a => {
+        if (a.lockedUntil && now < a.lockedUntil) return a;
+        if (pin === CLEAR_PIN) {
+          return { ...a, unlocked: true, error: "", pin: "", attempts: 0, lockedUntil: null };
+        }
+        const attempts = a.attempts + 1;
+        const lockedUntil = attempts >= 3 ? now + 30000 : null;
+        return { ...a, error: attempts >= 3 ? "Too many attempts. Locked for 30s." : `Incorrect PIN. ${3 - attempts} attempt${3 - attempts !== 1 ? "s" : ""} left.`, pin: "", attempts, lockedUntil };
+      });
+    };
+
+    const lockClear = () => {
+      setClearAuth({ unlocked: false, pin: "", error: "", attempts: 0, lockedUntil: null });
+      setClearTarget(null);
+      setClearConfirm(false);
+      setClearSuccess(null);
+    };
+
+    const executeClear = async () => {
+      let updated = { ...entries };
+      if (clearTarget === "all") {
+        updated = {};
+      } else {
+        Object.keys(updated).forEach(date => {
+          updated[date] = updated[date].filter(e => e.type !== clearTarget);
+        });
+        Object.keys(updated).forEach(date => { if (updated[date].length === 0) delete updated[date]; });
+      }
+      await saveEntries(updated);
+      const label = clearTarget === "all" ? "All entries" : clearTarget === "sale" ? "All sales entries" : "All expense entries";
+      setClearSuccess(label);
+      setClearTarget(null);
+      setClearConfirm(false);
+    };
+
+    if (loading) return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 12 }}>
+        <div style={{ width: 32, height: 32, border: "2px solid var(--color-border-secondary)", borderTop: `2px solid ${SALE_GREEN}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Connecting to cloud…</p>
+      </div>
+    );
+
+    const navItems = [
+      ["dashboard", "ti-layout-dashboard", "Summary"],
+      ["add", "ti-plus", "Add Entry"],
+      ["history", "ti-list", "History"],
+      ["inventory", "ti-package", "Inventory"],
+      ["categories", "ti-tags", "Categories"],
+      ["clear", "ti-shield-lock", "Clear Data"],
+    ];
+
+    return (
+      <div style={{ fontFamily: "var(--font-sans)", paddingBottom: 90 }} className="safe-top">
+        {/* Header */}
+        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => shiftDate(-1)} style={{ border: "none", background: "none", cursor: "pointer", padding: 6, color: "var(--color-text-secondary)" }}>
+              <i className="ti ti-chevron-left" style={{ fontSize: 18 }} />
+            </button>
+            <span style={{ fontWeight: 600, fontSize: 15 }}>{displayDate(currentDate)}</span>
+            <button onClick={() => shiftDate(1)} disabled={isToday} style={{ border: "none", background: "none", cursor: "pointer", padding: 6, color: isToday ? "var(--color-border-secondary)" : "var(--color-text-secondary)" }}>
+              <i className="ti ti-chevron-right" style={{ fontSize: 18 }} />
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {lowStockItems.length > 0 && (
+              <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E", display: "flex", alignItems: "center", gap: 4 }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />{lowStockItems.length} low
+              </button>
+            )}
+            {!isToday && (
+              <button onClick={() => setCurrentDate(dateKey(new Date()))} style={{ fontSize: 12, color: "var(--color-text-info)", background: "none", border: "none", cursor: "pointer" }}>
+                Today
+              </button>
+            )}
+            {saving && <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Saving…</span>}
+          </div>
+        </div>
+
+        {/* Nav */}
+        <div style={{ display: "flex", borderBottom: "0.5px solid var(--color-border-tertiary)", margin: "12px 0 0", padding: "0 8px", overflowX: "auto" }}>
+          {navItems.map(([v, icon, label]) => (
+            <button key={v} onClick={() => { setView(v); if (v !== "clear") lockClear(); }} className={`tab-btn${view === v ? " active" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
+              <i className={`ti ${icon}`} style={{ fontSize: 15, display: "block", margin: "0 auto 2px" }} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── DASHBOARD ── */}
+        {view === "dashboard" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <div style={{ background: net >= 0 ? "var(--color-background-success)" : "var(--color-background-danger)", borderRadius: "var(--border-radius-lg)", padding: "20px", marginBottom: 12, textAlign: "center" }}>
+              <p style={{ fontSize: 11, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Net {net >= 0 ? "Profit" : "Loss"} — {displayDate(currentDate)}</p>
+              <p style={{ fontSize: 32, fontWeight: 600, margin: 0, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)" }}>{fmt(Math.abs(net))}</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <i className="ti ti-arrow-up-circle" style={{ fontSize: 16, color: SALE_GREEN }} />
+                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>Sales</span>
+                </div>
+                <p style={{ fontSize: 20, fontWeight: 600, margin: 0, color: SALE_GREEN }}>{fmt(sales)}</p>
+                <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", margin: "2px 0 0" }}>{dayEntries.filter(e => e.type === "sale").length} entries</p>
+              </div>
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <i className="ti ti-arrow-down-circle" style={{ fontSize: 16, color: EXP_RED }} />
+                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>Expenses</span>
+                </div>
+                <p style={{ fontSize: 20, fontWeight: 600, margin: 0, color: EXP_RED }}>{fmt(expenses)}</p>
+                <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", margin: "2px 0 0" }}>{dayEntries.filter(e => e.type === "expense").length} entries</p>
+              </div>
+            </div>
+
+            {topProducts.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <p className="section-label">Top Revenue Sources (All Time)</p>
+                <div style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
+                  {topProducts.map(([name, data], i) => {
+                    const pct = totalRevenue > 0 ? ((data.revenue / totalRevenue) * 100).toFixed(1) : 0;
+                    return (
+                      <div key={name} style={{ padding: "12px 14px", borderTop: i > 0 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 20, height: 20, borderRadius: "50%", background: SALE_GREEN, color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{name}</span>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: SALE_GREEN }}>{fmt(data.revenue)}</span>
+                            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>{pct}%</span>
+                          </div>
+                        </div>
+                        <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--color-text-tertiary)" }}>{data.count} transaction{data.count !== 1 ? "s" : ""}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", margin: "6px 0 0 2px" }}>Total all-time revenue: {fmt(totalRevenue)}</p>
+              </div>
+            )}
+
+            {dayEntries.length > 0 && (
+              <div>
+                <p className="section-label">Recent — {displayDate(currentDate)}</p>
+                <div style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
+                  {dayEntries.slice(0, 5).map((e, i) => (
+                    <div key={e.id} className="entry-row" style={{ display: "flex", alignItems: "center", padding: "11px 14px", borderTop: i > 0 ? "0.5px solid var(--color-border-tertiary)" : "none", transition: "background 0.1s" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: e.type === "sale" ? "#E1F5EE" : "#FAECE7", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 10, flexShrink: 0 }}>
+                        <i className={`ti ${e.type === "sale" ? "ti-arrow-up" : "ti-arrow-down"}`} style={{ fontSize: 14, color: e.type === "sale" ? SALE_GREEN : EXP_RED }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.category}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-tertiary)" }}>{e.note || e.time}</p>
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: e.type === "sale" ? SALE_GREEN : EXP_RED, marginLeft: 8 }}>{e.type === "sale" ? "+" : "-"}{fmt(e.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+                {dayEntries.length > 5 && (
+                  <button onClick={() => setView("history")} style={{ width: "100%", marginTop: 8, padding: "10px", background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
+                    View all {dayEntries.length} entries
+                  </button>
+                )}
+              </div>
+            )}
+
+            {dayEntries.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-tertiary)" }}>
+                <i className="ti ti-receipt-off" style={{ fontSize: 40, display: "block", marginBottom: 10 }} />
+                <p style={{ margin: 0, fontSize: 14 }}>No entries for {displayDate(currentDate).toLowerCase()}.<br />Tap <strong>Add Entry</strong> to get started.</p>
+              </div>
+            )}
+
+            <button onClick={() => setView("add")} className="btn-tap" style={{ position: "fixed", bottom: "calc(24px + env(safe-area-inset-bottom, 0px))", right: 20, width: 52, height: 52, borderRadius: "50%", background: SALE_GREEN, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(15,110,86,0.4)", zIndex: 10 }} aria-label="Add entry">
+              <i className="ti ti-plus" style={{ fontSize: 22, color: "#fff" }} />
+            </button>
+          </div>
+        )}
+
+        {/* ── ADD ENTRY ── */}
+        {view === "add" && (
+          <div className="fade-in" style={{ padding: "20px 16px" }}>
+            <div style={{ display: "flex", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", overflow: "hidden", marginBottom: 20 }}>
+              <button onClick={() => setForm(f => ({ ...f, type: "sale", category: "" }))} style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: form.type === "sale" ? SALE_GREEN : "transparent", color: form.type === "sale" ? "#fff" : "var(--color-text-secondary)" }}>
+                <i className="ti ti-arrow-up" style={{ marginRight: 6 }} />Sale / Income
+              </button>
+              <button onClick={() => setForm(f => ({ ...f, type: "expense", category: "" }))} style={{ flex: 1, padding: "12px", border: "none", borderLeft: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: form.type === "expense" ? EXP_RED : "transparent", color: form.type === "expense" ? "#fff" : "var(--color-text-secondary)" }}>
+                <i className="ti ti-arrow-down" style={{ marginRight: 6 }} />Expense
+              </button>
+            </div>
+
+            <label className="section-label" style={{ display: "block", marginBottom: 4 }}>Amount (KES)</label>
+            <input type="number" placeholder="0" min="0" step="any" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} style={{ marginBottom: 14, fontSize: 24, fontWeight: 600, textAlign: "center" }} />
+
+            <label className="section-label" style={{ display: "block", marginBottom: 4 }}>Category</label>
+            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ marginBottom: 14 }}>
+              <option value="">Select category</option>
+              {(categories[form.type] || []).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+
+            <label className="section-label" style={{ display: "block", marginBottom: 4 }}>Note (optional)</label>
+            <input type="text" placeholder="Add a note…" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} style={{ marginBottom: 24 }} />
+
+            <button onClick={addEntry} className="btn-tap" disabled={!form.amount || isNaN(form.amount) || Number(form.amount) <= 0} style={{ width: "100%", padding: "14px", border: "none", borderRadius: "var(--border-radius-md)", cursor: "pointer", fontSize: 15, fontWeight: 600, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: !form.amount || isNaN(form.amount) || Number(form.amount) <= 0 ? "var(--color-background-secondary)" : form.type === "sale" ? SALE_GREEN : EXP_RED, color: !form.amount || isNaN(form.amount) || Number(form.amount) <= 0 ? "var(--color-text-tertiary)" : "#fff" }}>
+              Save {form.type === "sale" ? "Sale" : "Expense"}
+            </button>
+          </div>
+        )}
+
+        {/* ── HISTORY ── */}
+        {view === "history" && (() => {
+          const historyGroups = buildHistoryGroups();
+          const totalEntries = Object.values(entries).flat().length;
+          const grandSales = Object.values(entries).flat().filter(e => e.type === "sale").reduce((s, e) => s + e.amount, 0);
+          const grandExp = Object.values(entries).flat().filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0);
+          const grandNet = grandSales - grandExp;
+
+          return (
+            <div className="fade-in" style={{ padding: "16px" }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                {[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([mode, label]) => (
+                  <button key={mode} onClick={() => { setHistGroup(mode); setCollapsedGroups({}); }} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${histGroup === mode ? SALE_GREEN : "var(--color-border-secondary)"}`, borderRadius: "var(--border-radius-md)", background: histGroup === mode ? "#E1F5EE" : "transparent", color: histGroup === mode ? SALE_GREEN : "var(--color-text-secondary)", cursor: "pointer", fontSize: 12, fontWeight: histGroup === mode ? 700 : 500, fontFamily: "var(--font-sans)", transition: "all 0.15s" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {totalEntries === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-tertiary)" }}>
+                  <i className="ti ti-calendar-off" style={{ fontSize: 40, display: "block", marginBottom: 10 }} />
+                  <p style={{ margin: 0, fontSize: 14 }}>No entries recorded yet.<br />Add your first entry to see history.</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    <div className="card" style={{ textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: SALE_GREEN }}>{fmt(grandSales)}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Total Sales</p>
+                    </div>
+                    <div className="card" style={{ textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: EXP_RED }}>{fmt(grandExp)}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Total Expenses</p>
+                    </div>
+                    <div className="card" style={{ textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: grandNet >= 0 ? SALE_GREEN : EXP_RED }}>{fmt(Math.abs(grandNet))}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Net {grandNet >= 0 ? "Profit" : "Loss"}</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {historyGroups.map(group => {
+                      const isCollapsed = !!collapsedGroups[group.key];
+                      const gNet = group.sales - group.expenses;
+                      return (
+                        <div key={group.key} style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
+                          <button onClick={() => toggleGroup(group.key)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", border: "none", background: "var(--color-background-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <i className={`ti ${isCollapsed ? "ti-chevron-right" : "ti-chevron-down"}`} style={{ fontSize: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+                              <div>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>{group.label}</span>
+                                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>{group.entries.length} entr{group.entries.length !== 1 ? "ies" : "y"}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 12, color: SALE_GREEN, fontWeight: 600 }}>+{fmt(group.sales)}</span>
+                              <span style={{ fontSize: 12, color: EXP_RED, fontWeight: 600 }}>-{fmt(group.expenses)}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: gNet >= 0 ? SALE_GREEN : EXP_RED, minWidth: 60, textAlign: "right" }}>{gNet >= 0 ? "+" : ""}{fmt(gNet)}</span>
+                            </div>
+                          </button>
+
+                          {!isCollapsed && group.entries.map((e, i) => (
+                            <div key={e.id}>
+                              <div className="entry-row" style={{ display: "flex", alignItems: "center", padding: "11px 14px", borderTop: "0.5px solid var(--color-border-tertiary)", transition: "background 0.1s" }}>
+                                <div style={{ width: 30, height: 30, borderRadius: "50%", background: e.type === "sale" ? "#E1F5EE" : "#FAECE7", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 10, flexShrink: 0 }}>
+                                  <i className={`ti ${e.type === "sale" ? "ti-arrow-up" : "ti-arrow-down"}`} style={{ fontSize: 13, color: e.type === "sale" ? SALE_GREEN : EXP_RED }} />
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.category}</p>
+                                  <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                                    {histGroup !== "day" && <span>{displayDate(e.dateStr)} · </span>}
+                                    {e.note ? `${e.note} · ` : ""}{e.time}
+                                  </p>
+                                </div>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: e.type === "sale" ? SALE_GREEN : EXP_RED, marginLeft: 8, flexShrink: 0 }}>{e.type === "sale" ? "+" : "-"}{fmt(e.amount)}</span>
+                                <button onClick={() => setDeleteId(deleteId === e.id ? null : e.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: "4px 4px 4px 8px", color: "var(--color-text-tertiary)", flexShrink: 0 }}>
+                                  <i className="ti ti-dots-vertical" style={{ fontSize: 15 }} />
+                                </button>
+                              </div>
+                              {deleteId === e.id && (
+                                <div style={{ background: "var(--color-background-danger)", padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "0.5px solid var(--color-border-danger)" }}>
+                                  <span style={{ fontSize: 13, color: "var(--color-text-danger)" }}>Delete this entry?</span>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button onClick={() => setDeleteId(null)} style={{ padding: "6px 12px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>Cancel</button>
+                                    <button onClick={() => deleteEntryFromHistory(e)} style={{ padding: "6px 12px", border: "none", borderRadius: "var(--border-radius-md)", background: "var(--color-background-danger)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-danger)", fontWeight: 500 }}>
+                                      <i className="ti ti-trash" style={{ marginRight: 4 }} />Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── INVENTORY ── */}
+        {view === "inventory" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 16 }}>
+              <p className="section-label">{invEditId ? "Edit Product" : "Add Product / Item"}</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <div style={{ gridColumn: "1/-1" }}>
+                  <input placeholder="Product name *" value={invForm.name} onChange={e => setInvForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <input placeholder="SKU / Code" value={invForm.sku} onChange={e => setInvForm(f => ({ ...f, sku: e.target.value }))} />
+                <input type="number" placeholder="Qty *" min="0" value={invForm.qty} onChange={e => setInvForm(f => ({ ...f, qty: e.target.value }))} />
+                <input type="number" placeholder="Price (KES)" min="0" value={invForm.price} onChange={e => setInvForm(f => ({ ...f, price: e.target.value }))} />
+                <input type="number" placeholder="Low stock alert" min="0" value={invForm.low} onChange={e => setInvForm(f => ({ ...f, low: e.target.value }))} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={addOrUpdateInventory} className="btn-tap" disabled={!invForm.name.trim() || !invForm.qty} style={{ flex: 1, padding: "10px", border: "none", borderRadius: "var(--border-radius-md)", background: !invForm.name.trim() || !invForm.qty ? "var(--color-border-tertiary)" : SALE_GREEN, color: !invForm.name.trim() || !invForm.qty ? "var(--color-text-tertiary)" : "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)" }}>
+                  {invEditId ? "Update Item" : "Add Item"}
+                </button>
+                {invEditId && (
+                  <button onClick={() => { setInvEditId(null); setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); }} style={{ padding: "10px 14px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>Cancel</button>
+                )}
+              </div>
+            </div>
+
+            {inventory.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                <div className="card" style={{ textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)" }}>{inventory.length}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Products</p>
+                </div>
+                <div className="card" style={{ textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: lowStockItems.length > 0 ? "#92400E" : "var(--color-text-primary)" }}>{lowStockItems.length}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Low Stock</p>
+                </div>
+                <div className="card" style={{ textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)" }}>{fmt(inventory.reduce((s, i) => s + (i.qty * (i.price || 0)), 0))}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Stock Value</p>
+                </div>
+              </div>
+            )}
+
+            {inventory.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-tertiary)" }}>
+                <i className="ti ti-package-off" style={{ fontSize: 40, display: "block", marginBottom: 10 }} />
+                <p style={{ margin: 0, fontSize: 14 }}>No inventory items yet.<br />Add your first product above.</p>
+              </div>
+            ) : (
+              <div style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
+                {inventory.map((item, i) => {
+                  const isLow = item.qty <= (item.low || 5);
+                  const isOut = item.qty === 0;
+                  return (
+                    <div key={item.id}>
+                      <div style={{ padding: "12px 14px", borderTop: i > 0 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{item.name}</span>
+                              {isOut ? <span className="out-badge">Out of stock</span> : isLow ? <span className="low-badge">Low stock</span> : null}
+                            </div>
+                            {item.sku && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-tertiary)" }}>SKU: {item.sku}</p>}
+                            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Qty: <strong style={{ color: isOut ? "#991B1B" : isLow ? "#92400E" : SALE_GREEN }}>{item.qty}</strong></span>
+                              {item.price > 0 && <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Price: {fmt(item.price)}</span>}
+                              {item.price > 0 && <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Value: {fmt(item.qty * item.price)}</span>}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                            <button onClick={() => setStockAdjId(stockAdjId === item.id ? null : item.id)} style={{ border: "0.5px solid var(--color-border-secondary)", background: "none", borderRadius: "var(--border-radius-md)", padding: "5px 8px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: SALE_GREEN, fontFamily: "var(--font-sans)" }}>
+                              <i className="ti ti-adjustments-horizontal" style={{ fontSize: 12 }} /> Adjust
+                            </button>
+                            <button onClick={() => startEdit(item)} style={{ border: "0.5px solid var(--color-border-secondary)", background: "none", borderRadius: "var(--border-radius-md)", padding: "5px 8px", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
+                              <i className="ti ti-pencil" style={{ fontSize: 12 }} />
+                            </button>
+                            <button onClick={() => setInvDeleteId(invDeleteId === item.id ? null : item.id)} style={{ border: "0.5px solid var(--color-border-danger)", background: "none", borderRadius: "var(--border-radius-md)", padding: "5px 8px", cursor: "pointer", fontSize: 11, color: "var(--color-text-danger)", fontFamily: "var(--font-sans)" }}>
+                              <i className="ti ti-trash" style={{ fontSize: 12 }} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {stockAdjId === item.id && (
+                          <div style={{ marginTop: 10, padding: 10, background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)" }}>
+                            <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Adjust Stock (use − for removal)</p>
+                            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                              <input type="number" placeholder="e.g. +10 or -3" value={stockAdj.delta} onChange={e => setStockAdj(s => ({ ...s, delta: e.target.value }))} style={{ flex: 1 }} />
+                              <input type="text" placeholder="Reason (optional)" value={stockAdj.note} onChange={e => setStockAdj(s => ({ ...s, note: e.target.value }))} style={{ flex: 2 }} />
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={applyStockAdj} style={{ flex: 1, padding: "8px", border: "none", borderRadius: "var(--border-radius-md)", background: SALE_GREEN, color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)" }}>Apply</button>
+                              <button onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }} style={{ padding: "8px 12px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>Cancel</button>
+                            </div>
+                            {item.history && item.history.length > 0 && (
+                              <div style={{ marginTop: 8 }}>
+                                <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Recent Adjustments</p>
+                                {item.history.slice(0, 3).map((h, hi) => (
+                                  <div key={hi} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 0" }}>
+                                    <span>{h.date} — {h.note || "adjustment"}</span>
+                                    <span style={{ fontWeight: 600, color: h.delta > 0 ? SALE_GREEN : EXP_RED }}>{h.delta > 0 ? "+" : ""}{h.delta} → {h.qty}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {invDeleteId === item.id && (
+                          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-background-danger)", borderRadius: "var(--border-radius-md)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 13, color: "var(--color-text-danger)" }}>Remove {item.name}?</span>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => setInvDeleteId(null)} style={{ padding: "5px 10px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 12, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>No</button>
+                              <button onClick={() => deleteInventory(item.id)} style={{ padding: "5px 10px", border: "none", borderRadius: "var(--border-radius-md)", background: "var(--color-background-danger)", cursor: "pointer", fontSize: 12, fontFamily: "var(--font-sans)", color: "var(--color-text-danger)", fontWeight: 600 }}>Remove</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── CATEGORIES ── */}
+        {view === "categories" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <div style={{ display: "flex", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", overflow: "hidden", marginBottom: 20 }}>
+              <button onClick={() => setCatMgmt(c => ({ ...c, type: "sale" }))} style={{ flex: 1, padding: "10px", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: catMgmt.type === "sale" ? SALE_GREEN : "transparent", color: catMgmt.type === "sale" ? "#fff" : "var(--color-text-secondary)" }}>
+                <i className="ti ti-arrow-up" style={{ marginRight: 6 }} />Sale / Income
+              </button>
+              <button onClick={() => setCatMgmt(c => ({ ...c, type: "expense" }))} style={{ flex: 1, padding: "10px", border: "none", borderLeft: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: catMgmt.type === "expense" ? EXP_RED : "transparent", color: catMgmt.type === "expense" ? "#fff" : "var(--color-text-secondary)" }}>
+                <i className="ti ti-arrow-down" style={{ marginRight: 6 }} />Expense
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <input
+                placeholder={`New ${catMgmt.type === "sale" ? "income" : "expense"} category…`}
+                value={catMgmt.newName}
+                onChange={e => setCatMgmt(c => ({ ...c, newName: e.target.value }))}
+                onKeyDown={e => { if (e.key === "Enter") addCategory(); }}
+                style={{ flex: 1 }}
+              />
+              <button onClick={addCategory} disabled={!catMgmt.newName.trim()} style={{ padding: "10px 16px", border: "none", borderRadius: "var(--border-radius-md)", background: !catMgmt.newName.trim() ? "var(--color-border-tertiary)" : catMgmt.type === "sale" ? SALE_GREEN : EXP_RED, color: !catMgmt.newName.trim() ? "var(--color-text-tertiary)" : "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)", flexShrink: 0 }}>
+                Add
+              </button>
+            </div>
+
+            <p className="section-label">{catMgmt.type === "sale" ? "Income" : "Expense"} Categories ({(categories[catMgmt.type] || []).length})</p>
+            {(categories[catMgmt.type] || []).length === 0 ? (
+              <div style={{ textAlign: "center", padding: "30px 20px", color: "var(--color-text-tertiary)", borderRadius: "var(--border-radius-lg)", border: "0.5px dashed var(--color-border-secondary)" }}>
+                <i className="ti ti-tag-off" style={{ fontSize: 32, display: "block", marginBottom: 8 }} />
+                <p style={{ margin: 0, fontSize: 13 }}>No categories yet. Add one above.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(categories[catMgmt.type] || []).map(cat => (
+                  <span key={cat} className="pill-tag">
+                    {cat}
+                    <button onClick={() => removeCategory(catMgmt.type, cat)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "var(--color-text-tertiary)", marginLeft: 2 }} aria-label={`Remove ${cat}`}>
+                      <i className="ti ti-x" style={{ fontSize: 11 }} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── CLEAR DATA ── */}
+        {view === "clear" && (() => {
+          const now = Date.now();
+          const isLocked = clearAuth.lockedUntil && now < clearAuth.lockedUntil;
+          const totalSales = Object.values(entries).flat().filter(e => e.type === "sale").length;
+          const totalExpenses = Object.values(entries).flat().filter(e => e.type === "expense").length;
+          const totalAll = totalSales + totalExpenses;
+
+          const pinDots = (
+            <div style={{ display: "flex", gap: 14, justifyContent: "center", margin: "20px 0 8px" }}>
+              {[0,1,2,3].map(i => (
+                <div key={i} style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${clearAuth.pin.length > i ? EXP_RED : "var(--color-border-secondary)"}`, background: clearAuth.pin.length > i ? EXP_RED : "transparent", transition: "all 0.15s" }} />
+              ))}
+            </div>
+          );
+
+          const pinPad = (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 64px)", gap: 10, justifyContent: "center", marginTop: 16 }}>
+              {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k, idx) => {
+                if (k === "") return <div key={idx} />;
+                const isBack = k === "⌫";
+                return (
+                  <button key={k} className={`pin-key${isBack ? " danger" : ""}`} disabled={isLocked}
+                    onClick={() => {
+                      if (isBack) { setClearAuth(a => ({ ...a, pin: a.pin.slice(0, -1), error: "" })); return; }
+                      if (clearAuth.pin.length >= 4) return;
+                      const next = clearAuth.pin + k;
+                      setClearAuth(a => ({ ...a, pin: next, error: "" }));
+                      if (next.length === 4) setTimeout(() => submitPin(next), 80);
+                    }}>
+                    {k}
+                  </button>
+                );
+              })}
+            </div>
+          );
+
+          return (
+            <div className="fade-in" style={{ padding: "16px" }}>
+              {!clearAuth.unlocked ? (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", margin: "12px auto 0" }}>
+                    <i className="ti ti-shield-lock" style={{ fontSize: 24, color: EXP_RED }} />
+                  </div>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", margin: "12px 0 4px" }}>Protected Area</p>
+                  <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>Enter your 4-digit PIN to manage data clearing.</p>
+                  {pinDots}
+                  {clearAuth.error && (
+                    <p className="shake" style={{ fontSize: 12, color: EXP_RED, margin: "4px 0 0", fontWeight: 600 }}>{clearAuth.error}</p>
+                  )}
+                  {pinPad}
+                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 20 }}>
+                    <i className="ti ti-lock" style={{ marginRight: 4 }} />This section requires authorisation.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#E1F5EE", borderRadius: "var(--border-radius-md)", marginBottom: 20 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <i className="ti ti-shield-check" style={{ fontSize: 16, color: SALE_GREEN }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: SALE_GREEN }}>Unlocked</span>
+                    </div>
+                    <button onClick={lockClear} style={{ border: "0.5px solid rgba(15,110,86,0.3)", borderRadius: "var(--border-radius-md)", background: "none", padding: "4px 10px", cursor: "pointer", fontSize: 12, color: SALE_GREEN, fontFamily: "var(--font-sans)", fontWeight: 600 }}>
+                      <i className="ti ti-lock" style={{ marginRight: 4 }} />Lock
+                    </button>
+                  </div>
+
+                  {clearSuccess && (
+                    <div style={{ padding: "12px 14px", background: "#E1F5EE", borderRadius: "var(--border-radius-md)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                      <i className="ti ti-circle-check" style={{ fontSize: 16, color: SALE_GREEN }} />
+                      <span style={{ fontSize: 13, color: SALE_GREEN, fontWeight: 600 }}>{clearSuccess} cleared successfully.</span>
+                      <button onClick={() => setClearSuccess(null)} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", color: SALE_GREEN, padding: 0 }}><i className="ti ti-x" style={{ fontSize: 13 }} /></button>
+                    </div>
+                  )}
+
+                  <p className="section-label">Current Data</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
+                    <div className="card" style={{ textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: SALE_GREEN }}>{totalSales}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Sales</p>
+                    </div>
+                    <div className="card" style={{ textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: EXP_RED }}>{totalExpenses}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Expenses</p>
+                    </div>
+                    <div className="card" style={{ textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>{totalAll}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Total</p>
+                    </div>
+                  </div>
+
+                  <p className="section-label">Clear Options</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+                    {[
+                      { key: "sale", label: "Clear Sales / Income Entries", sub: `Remove all ${totalSales} sales records`, icon: "ti-arrow-up-circle", color: SALE_GREEN, bg: "#E1F5EE", count: totalSales },
+                      { key: "expense", label: "Clear Expense Entries", sub: `Remove all ${totalExpenses} expense records`, icon: "ti-arrow-down-circle", color: EXP_RED, bg: "#FAECE7", count: totalExpenses },
+                      { key: "all", label: "Clear All Entries", sub: `Remove all ${totalAll} records (sales + expenses)`, icon: "ti-trash", color: "#7C3AED", bg: "#EDE9FE", count: totalAll },
+                    ].map(opt => (
+                      <button key={opt.key} onClick={() => { if (opt.count > 0) { setClearTarget(opt.key); setClearConfirm(true); } }} disabled={opt.count === 0}
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px", borderRadius: "var(--border-radius-lg)", border: `1px solid ${opt.count === 0 ? "var(--color-border-tertiary)" : "var(--color-border-secondary)"}`, background: opt.count === 0 ? "transparent" : "var(--color-background-primary)", cursor: opt.count === 0 ? "not-allowed" : "pointer", textAlign: "left", fontFamily: "var(--font-sans)", opacity: opt.count === 0 ? 0.5 : 1, transition: "all 0.15s" }}>
+                        <div style={{ width: 38, height: 38, borderRadius: "50%", background: opt.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <i className={`ti ${opt.icon}`} style={{ fontSize: 18, color: opt.color }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{opt.label}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>{opt.sub}</p>
+                        </div>
+                        {opt.count > 0 && <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ padding: "12px 14px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                    <i className="ti ti-alert-triangle" style={{ marginRight: 6, color: "#92400E" }} />
+                    Clearing entries is permanent and cannot be undone. Changes sync to all devices.
+                  </div>
+
+                  {clearConfirm && clearTarget && (() => {
+                    const opt = { sale: { label: "sales / income", color: SALE_GREEN }, expense: { label: "expense", color: EXP_RED }, all: { label: "all", color: "#7C3AED" } }[clearTarget];
+                    const count = clearTarget === "all" ? totalAll : clearTarget === "sale" ? totalSales : totalExpenses;
+                    return (
+                      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                        <div className="fade-in" style={{ background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg) var(--border-radius-lg) 0 0", padding: "24px 20px 36px", width: "100%", maxWidth: 460, boxSizing: "border-box" }}>
+                          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+                            <i className="ti ti-alert-triangle" style={{ fontSize: 22, color: EXP_RED }} />
+                          </div>
+                          <p style={{ textAlign: "center", fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", margin: "0 0 8px" }}>Confirm Clear</p>
+                          <p style={{ textAlign: "center", fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 24px", lineHeight: 1.5 }}>
+                            You are about to permanently delete <strong>{count} {opt.label} entr{count !== 1 ? "ies" : "y"}</strong> across all devices.<br />This cannot be undone.
+                          </p>
+                          <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => { setClearConfirm(false); setClearTarget(null); }} style={{ flex: 1, padding: "13px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>
+                              Cancel
+                            </button>
+                            <button onClick={executeClear} style={{ flex: 1, padding: "13px", border: "none", borderRadius: "var(--border-radius-md)", background: EXP_RED, color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: "var(--font-sans)" }}>
+                              <i className="ti ti-trash" style={{ marginRight: 6 }} />Yes, Clear
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+    );
+  }
+
+  // Start React when Firebase is ready
+  window._startReact = function() {
+    ReactDOM.createRoot(document.getElementById('root')).render(<SalesTracker />);
+  };
+
+  // If Firebase was already connected (auto-connect path), start now
+  if (window._firebaseReady) {
+    window._startReact();
+  }
+</script>
+</body>
+</html>
