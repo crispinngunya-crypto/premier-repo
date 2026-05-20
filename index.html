@@ -272,6 +272,7 @@
     const [histGroup, setHistGroup] = useState("day");
     const [collapsedGroups, setCollapsedGroups] = useState({});
     const [catMgmt, setCatMgmt] = useState({ open: false, type: "sale", newName: "" });
+    const [expandedCats, setExpandedCats] = useState({});
 
     const [invForm, setInvForm] = useState({ name: "", sku: "", qty: "", price: "", low: "" });
     const [invEditId, setInvEditId] = useState(null);
@@ -422,6 +423,11 @@
     const removeCategory = async (type, name) => {
       const updated = { ...categories, [type]: categories[type].filter(c => c !== name) };
       await saveCategories(updated);
+      setExpandedCats(e => ({ ...e, [name]: false }));
+    };
+
+    const toggleCategoryExpand = (catName) => {
+      setExpandedCats(e => ({ ...e, [catName]: !e[catName] }));
     };
 
     const addOrUpdateInventory = async () => {
@@ -647,7 +653,7 @@
             <p className="section-label">Transaction History</p>
             <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
               {["day", "week", "month", "year"].map(m => (
-                <button key={m} onClick={() => { setHistGroup(m); setCollapsedGroups({}); }} style={{ padding: "6px 12px", border: "1px solid", borderColor: histGroup === m ? SALE_GREEN : "var(--color-border-secondary)", background: histGroup === m ? SALE_GREEN : "transparent", color: histGroup === m ? "white" : "var(--color-text-primary)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap" }}>
+                <button key={m} onClick={() => { setHistGroup(m); setCollapsedGroups({}); }} style={{ padding: "6px 12px", border: "1px solid", borderColor: histGroup === m ? SALE_GREEN : "var(--color-border-secondary)", background: "white", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: histGroup === m ? 600 : 500 }}>
                   {m.charAt(0).toUpperCase() + m.slice(1)}
                 </button>
               ))}
@@ -668,12 +674,12 @@
                 {!collapsedGroups[group.key] && (
                   <div style={{ marginTop: 8 }}>
                     {group.entries.map(e => (
-                      <div key={e.id} style={{ padding: "8px 12px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div key={e.id} style={{ padding: "8px 12px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
                         <div>
                           <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{e.category}</p>
                           <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>{e.time}</p>
                         </div>
-                        <button onClick={() => setDeleteId(deleteId === e.id ? null : e.id)} style={{ border: "none", background: "none", cursor: "pointer", color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: 600 }}>
+                        <button onClick={() => setDeleteId(deleteId === e.id ? null : e.id)} style={{ border: "none", background: "none", cursor: "pointer", color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: "bold", fontSize: 14 }}>
                           {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
                         </button>
                       </div>
@@ -690,7 +696,7 @@
           <div className="fade-in" style={{ padding: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <p className="section-label">Inventory</p>
-              <button onClick={() => { setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); setInvEditId(null); }} style={{ background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+              <button onClick={() => { setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); setInvEditId(null); }} style={{ background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                 + Add Item
               </button>
             </div>
@@ -744,7 +750,7 @@
                     <p style={{ margin: "2px 0 0", fontWeight: 600 }}>{fmt(item.price)}</p>
                   </div>
                 </div>
-                <button onClick={() => setStockAdjId(item.id)} style={{ width: "100%", padding: 8, background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)" }}>
+                <button onClick={() => setStockAdjId(item.id)} style={{ width: "100%", padding: 8, background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
                   Adjust Stock
                 </button>
               </div>
@@ -793,10 +799,10 @@
           <div className="fade-in" style={{ padding: "16px" }}>
             <p className="section-label">Manage Categories</p>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "sale" ? SALE_GREEN : "#eee", color: catMgmt.type === "sale" ? "white" : "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "sale" ? SALE_GREEN : "#eee", color: catMgmt.type === "sale" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
                 Sales
               </button>
-              <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "expense" ? EXP_RED : "#eee", color: catMgmt.type === "expense" ? "white" : "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "expense" ? EXP_RED : "#eee", color: catMgmt.type === "expense" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
                 Expenses
               </button>
             </div>
@@ -810,11 +816,21 @@
 
             <div>
               {categories[catMgmt.type].map(cat => (
-                <div key={cat} style={{ padding: "10px 12px", background: "var(--color-background-secondary)", borderRadius: 6, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>{cat}</span>
-                  <button onClick={() => removeCategory(catMgmt.type, cat)} style={{ background: "none", border: "none", cursor: "pointer", color: EXP_RED }}>
-                    <i className="ti ti-x" />
+                <div key={cat}>
+                  <button onClick={() => toggleCategoryExpand(cat)} style={{ width: "100%", padding: "10px 12px", background: "var(--color-background-secondary)", borderRadius: 6, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", border: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    <span style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>{cat}</span>
+                    <i className={`ti ti-chevron-${expandedCats[cat] ? "down" : "right"}`} style={{ fontSize: 16, color: "var(--color-text-secondary)" }} />
                   </button>
+                  {expandedCats[cat] && (
+                    <div style={{ padding: "0 12px 8px", marginBottom: 8, display: "flex", gap: 6 }}>
+                      <button onClick={() => removeCategory(catMgmt.type, cat)} style={{ flex: 1, padding: 10, background: EXP_RED, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
+                        Delete
+                      </button>
+                      <button onClick={() => toggleCategoryExpand(cat)} style={{ flex: 1, padding: 10, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
