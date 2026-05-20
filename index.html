@@ -1,31 +1,425 @@
-))}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales & Inventory Tracker</title>
+  <!-- React and ReactDOM CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel for JSX processing -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --primary: #10B981; /* Modern Emerald Green */
+      --primary-dark: #059669;
+      --danger: #F43F5E; /* Modern Rose Red */
+      --danger-dark: #E11D48;
+      --bg-color: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border-color: #E2E8F0;
+      
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+      --shadow-float: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      margin: 0;
+      background-color: #0F172A; /* Dark premium backing for the mobile frame viewport */
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      justify-content: center;
+    }
+
+    #root {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      background: var(--bg-color);
+      box-shadow: var(--shadow-float);
+      position: relative;
+      padding-bottom: 90px; /* Space for sticky bottom navigation view items */
+      box-sizing: border-box;
+    }
+
+    /* Typography & Structural Elements */
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.75px;
+      margin: 24px 0 12px 0;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-color);
+      box-sizing: border-box;
+    }
+
+    /* Controlled Form Inputs */
+    input, select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: #F1F5F9;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-main);
+      transition: all 0.2s;
+      box-sizing: border-box;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: var(--card-bg);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+
+    /* Core Button Interface Elements */
+    .btn {
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-sizing: border-box;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: var(--danger-dark); }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: #F1F5F9; }
+
+    /* Tags, Alerts & Badges */
+    .pill-tag {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+    .low-badge {
+      background: #FEE2E2;
+      color: var(--danger-dark);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Bottom Fixed Tab Navigation */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 480px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border-color);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.03);
+      z-index: 900;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+    .nav-item.active {
+      color: var(--primary-dark);
+    }
+    .nav-item i {
+      font-size: 20px;
+    }
+
+    /* Modal Backdrop View Overlay Layer */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 360px;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-float);
+      box-sizing: border-box;
+    }
+
+    /* Smooth Micro-Transitions */
+    .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect } = React;
+
+  // Global Mock/Firebase Readiness Verification Flags
+  window._firebaseReady = true;
+
+  function SalesTracker() {
+    // Shared Interface Hooks
+    const [view, setView] = useState("history");
+    const [histGroup, setHistGroup] = useState("day");
+    const [collapsedGroups, setCollapsedGroups] = useState({});
+    
+    // Primary Baseline Application State Data
+    const [transactions, setTransactions] = useState([
+      { id: "t1", type: "sale", category: "Retail", amount: 1250, dateStr: "2026-05-20", time: "10:30 AM", note: "Regular client walk-in" },
+      { id: "t2", type: "expense", category: "Inventory Purchases", amount: 450, dateStr: "2026-05-20", time: "11:15 AM", note: "Restock packaging material" },
+      { id: "t3", type: "sale", category: "Wholesale", amount: 3200, dateStr: "2026-05-18", time: "02:45 PM", note: "Bulk order batch #4" }
+    ]);
+
+    const [inventory, setInventory] = useState([
+      { id: "i1", name: "Premium Wireless Earbuds", sku: "EAR-PREM-01", qty: 14, price: 85, low: 5 },
+      { id: "i2", name: "Ergonomic Desk Chair Mk II", sku: "CHAIR-ERG-09", qty: 3, price: 240, low: 4 },
+      { id: "i3", name: "Ultra-Fast USB-C Cable (2m)", sku: "CABLE-USBC-2", qty: 45, price: 15, low: 10 }
+    ]);
+
+    const [categories, setCategories] = useState({
+      sale: ["Retail", "Wholesale", "Consulting", "Online Store"],
+      expense: ["Inventory Purchases", "Logistics & Shipping", "Marketing", "Rent & Utilities"]
+    });
+
+    // Form Processing States
+    const [invForm, setInvForm] = useState({ name: "", sku: "", qty: "", price: "", low: "" });
+    const [invEditId, setInvEditId] = useState(null);
+    const [catMgmt, setCatMgmt] = useState({ type: "sale", newName: "" });
+    const [stockAdjId, setStockAdjId] = useState(null);
+    const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
+
+    // Modals
+    const [deleteId, setDeleteId] = useState(null);
+    const [invDeleteId, setInvDeleteId] = useState(null);
+
+    // Format Utilities
+    const fmt = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+    
+    const displayDate = (str) => {
+      const options = { month: 'short', day: 'numeric', year: 'numeric' };
+      return new Date(str).toLocaleDateString('en-US', options);
+    };
+
+    const toggleGroup = (key) => {
+      setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    // Advanced Data Group Aggregation Architecture
+    const buildHistoryGroups = () => {
+      const groups = {};
+      transactions.forEach(t => {
+        let key = t.dateStr;
+        let label = displayDate(t.dateStr);
+
+        if (histGroup === "week") {
+          key = t.dateStr.substring(0, 7) + "-W" + Math.ceil(new Date(t.dateStr).getDate() / 7);
+          label = `Week of ${displayDate(t.dateStr)}`;
+        } else if (histGroup === "month") {
+          key = t.dateStr.substring(0, 7);
+          label = new Date(t.dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
+
+        if (!groups[key]) {
+          groups[key] = { key, label, sales: 0, expenses: 0, entries: [] };
+        }
+        
+        if (t.type === "sale") groups[key].sales += t.amount;
+        else groups[key].expenses += t.amount;
+        
+        groups[key].entries.push(t);
+      });
+      return Object.values(groups);
+    };
+
+    // Handlers
+    const confirmDeleteEntry = () => {
+      setTransactions(prev => prev.filter(t => t.id !== deleteId.id));
+      setDeleteId(null);
+    };
+
+    const addOrUpdateInventory = () => {
+      if (!invForm.name) return;
+      if (invEditId) {
+        setInventory(prev => prev.map(item => item.id === invEditId ? { 
+          ...item, 
+          name: invForm.name, 
+          sku: invForm.sku, 
+          qty: parseInt(invForm.qty) || 0, 
+          price: parseFloat(invForm.price) || 0, 
+          low: parseInt(invForm.low) || 5 
+        } : item));
+        setInvEditId(null);
+      } else {
+        const newItem = {
+          id: "i_" + Date.now(),
+          name: invForm.name,
+          sku: invForm.sku,
+          qty: parseInt(invForm.qty) || 0,
+          price: parseFloat(invForm.price) || 0,
+          low: parseInt(invForm.low) || 5
+        };
+        setInventory(prev => [...prev, newItem]);
+      }
+      setInvForm({ name: "", sku: "", qty: "", price: "", low: "" });
+    };
+
+    const startEdit = (item) => {
+      setInvEditId(item.id);
+      setInvForm({ name: item.name, sku: item.sku, qty: item.qty, price: item.price, low: item.low });
+    };
+
+    const saveInventory = async (newInvList) => {
+      setInventory(newInvList);
+    };
+
+    const applyStockAdj = () => {
+      const change = parseInt(stockAdj.delta);
+      if (isNaN(change)) return;
+      setInventory(prev => prev.map(item => item.id === stockAdjId ? { ...item, qty: Math.max(0, item.qty + change) } : item));
+      setStockAdjId(null);
+      setStockAdj({ delta: "", note: "" });
+    };
+
+    const addCategory = () => {
+      if (!catMgmt.newName.trim()) return;
+      setCategories(prev => ({
+        ...prev,
+        [catMgmt.type]: [...prev[catMgmt.type], catMgmt.newName.trim()]
+      }));
+      setCatMgmt(prev => ({ ...prev, newName: "" }));
+    };
+
+    const removeCategory = (type, targetName) => {
+      setCategories(prev => ({
+        ...prev,
+        [type]: prev[type].filter(c => c !== targetName)
+      }));
+    };
+
+    return (
+      <div style={{ minHeight: '100%' }}>
+        
+        {/* BRAND NAVBAR PROFILE SECTION */}
+        <div style={{ padding: '24px 20px 4px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'var(--primary)', color: 'white', padding: 8, borderRadius: 10, display: 'flex' }}>
+            <i className="ti ti-chart-arcs" style={{ fontSize: 22 }} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: '-0.3px' }}>LedgerFlow</h1>
+            <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Sales & Inventory Tracker</p>
+          </div>
+        </div>
+
+        {/* CONDITIONAL APP VIEW LAYERS */}
+        
+        {/* VIEW: TRANSACTIONS & SALES HISTORY */}
+        {view === "history" && (
+          <div className="fade-in" style={{ padding: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px' }}>History</h2>
+              <select 
+                value={histGroup} 
+                onChange={e => setHistGroup(e.target.value)}
+                style={{ width: "auto", padding: "8px 12px", background: "var(--card-bg)" }}
+              >
+                <option value="day">By Day</option>
+                <option value="week">By Week</option>
+                <option value="month">By Month</option>
+              </select>
             </div>
             
             {buildHistoryGroups().map(group => (
-              <div key={group.key} style={{ marginBottom: 16 }} className="card fade-in">
-                <div onClick={() => toggleGroup(group.key)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                  <span style={{ fontWeight: 600 }}>{group.label}</span>
-                  <span style={{ fontSize: 12 }}>
-                    Net: <span style={{ color: group.sales - group.expenses >= 0 ? SALE_GREEN : EXP_RED }}>{fmt(group.sales - group.expenses)}</span>
-                    {' '}<i className={`ti ti-chevron-${collapsedGroups[group.key] ? 'up' : 'down'}`} style={{ color: 'var(--color-text-tertiary)', marginLeft: 4 }} />
-                  </span>
+              <div key={group.key} className="card fade-in" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+                <div 
+                  onClick={() => toggleGroup(group.key)} 
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '16px', background: collapsedGroups[group.key] ? 'transparent' : '#F8FAFC' }}
+                >
+                  <span style={{ fontWeight: 600, fontSize: 15 }}>{group.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: group.sales - group.expenses >= 0 ? 'var(--primary-dark)' : 'var(--danger-dark)' }}>
+                      Net: {fmt(group.sales - group.expenses)}
+                    </span>
+                    <i className={`ti ti-chevron-${collapsedGroups[group.key] ? 'down' : 'up'}`} style={{ color: 'var(--text-muted)' }} />
+                  </div>
                 </div>
                 
                 {!collapsedGroups[group.key] && (
-                  <div style={{ marginTop: 12, borderTop: '1px solid var(--color-border-secondary)', paddingTop: 12 }}>
-                    {group.entries.map(e => (
-                      <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--color-border-tertiary)" }}>
+                  <div style={{ borderTop: '1px solid var(--border-color)' }}>
+                    {group.entries.map((e, index) => (
+                      <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", borderBottom: index !== group.entries.length - 1 ? "1px solid var(--border-color)" : "none" }}>
                         <div>
-                          <span style={{ fontWeight: 500, fontSize: 13 }}>{e.category}</span>
-                          <small style={{ color: 'var(--color-text-secondary)', display: 'block', fontSize: 11 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-main)' }}>{e.category}</span>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: 12, marginTop: 4 }}>
                             {histGroup !== 'day' ? `${displayDate(e.dateStr)} • ` : ''}{e.time} {e.note && `• ${e.note}`}
-                          </small>
+                          </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: 600, fontSize: 13 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ color: e.type === "sale" ? 'var(--primary-dark)' : 'var(--danger-dark)', fontWeight: 700, fontSize: 15 }}>
                             {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
                           </span>
-                          <button onClick={() => setDeleteId({ id: e.id, dateStr: e.dateStr })} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>
+                          <button onClick={() => setDeleteId({ id: e.id, dateStr: e.dateStr })} style={{ background: '#FEE2E2', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--danger)' }}>
                             <i className="ti ti-trash" style={{ fontSize: 14 }} />
                           </button>
                         </div>
@@ -35,28 +429,35 @@
                 )}
               </div>
             ))}
-            {buildHistoryGroups().length === 0 && <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No history found for this period.</p>}
+            {buildHistoryGroups().length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <i className="ti ti-receipt" style={{ fontSize: 48, color: "var(--border-color)" }} />
+                <p style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 12 }}>No history found for this period.</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* INVENTORY VIEW */}
+        {/* VIEW: STOCK & INVENTORY CONTROL */}
         {view === "inventory" && (
-          <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">{invEditId ? "Edit Inventory Item" : "Add New Item"}</p>
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <input type="text" placeholder="Item Name" value={invForm.name} onChange={e => setInvForm({...invForm, name: e.target.value})} style={{ gridColumn: "1 / -1" }} />
-                <input type="text" placeholder="SKU/Code (opt)" value={invForm.sku} onChange={e => setInvForm({...invForm, sku: e.target.value})} />
-                <input type="number" placeholder="Price (opt)" value={invForm.price} onChange={e => setInvForm({...invForm, price: e.target.value})} />
-                <input type="number" placeholder="Current Qty" value={invForm.qty} onChange={e => setInvForm({...invForm, qty: e.target.value})} />
-                <input type="number" placeholder="Low Alert At" value={invForm.low} onChange={e => setInvForm({...invForm, low: e.target.value})} />
+          <div className="fade-in" style={{ padding: "20px" }}>
+            <h2 style={{ margin: "0 0 24px 0", fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px' }}>Inventory</h2>
+            
+            <div className="card" style={{ marginBottom: 24, background: "var(--primary)", color: "white", border: "none" }}>
+              <p style={{ margin: "0 0 16px", fontWeight: 600 }}>{invEditId ? "Edit Item" : "Add New Item"}</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <input type="text" placeholder="Item Name" value={invForm.name} onChange={e => setInvForm({...invForm, name: e.target.value})} style={{ gridColumn: "1 / -1", border: "none" }} />
+                <input type="text" placeholder="SKU/Code (opt)" value={invForm.sku} onChange={e => setInvForm({...invForm, sku: e.target.value})} style={{ border: "none" }} />
+                <input type="number" placeholder="Price (opt)" value={invForm.price} onChange={e => setInvForm({...invForm, price: e.target.value})} style={{ border: "none" }} />
+                <input type="number" placeholder="Current Qty" value={invForm.qty} onChange={e => setInvForm({...invForm, qty: e.target.value})} style={{ border: "none" }} />
+                <input type="number" placeholder="Low Alert At" value={invForm.low} onChange={e => setInvForm({...invForm, low: e.target.value})} style={{ border: "none" }} />
               </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                <button onClick={addOrUpdateInventory} style={{ flex: 1, padding: 12, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                  {invEditId ? "Save Changes" : "Add to Inventory"}
+              <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+                <button onClick={addOrUpdateInventory} className="btn" style={{ flex: 1, background: "white", color: "var(--primary)", boxShadow: "var(--shadow-sm)" }}>
+                  {invEditId ? "Save Changes" : "Add Item"}
                 </button>
                 {invEditId && (
-                  <button onClick={() => { setInvEditId(null); setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); }} style={{ padding: 12, background: "#E5E7EB", color: "#374151", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
+                  <button onClick={() => { setInvEditId(null); setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); }} className="btn" style={{ background: "rgba(255,255,255,0.2)", color: "white" }}>
                     Cancel
                   </button>
                 )}
@@ -65,68 +466,96 @@
 
             <p className="section-label">Current Stock</p>
             {inventory.length === 0 ? (
-              <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>Your inventory is empty.</p>
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <i className="ti ti-box" style={{ fontSize: 48, color: "var(--border-color)" }} />
+                <p style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 12 }}>Your inventory is empty.</p>
+              </div>
             ) : (
-              inventory.map(item => (
-                <div key={item.id} className="card" style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ display: "grid", gap: 12 }}>
+                {inventory.map(item => (
+                  <div key={item.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <span style={{ fontWeight: 600, fontSize: 15 }}>{item.name}</span>
-                      {item.sku && <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>#{item.sku}</span>}
-                      <div style={{ marginTop: 4 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: item.qty <= (item.low || 5) ? EXP_RED : "var(--color-text-primary)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontWeight: 600, fontSize: 15 }}>{item.name}</span>
+                        {item.sku && <span style={{ fontSize: 12, color: "var(--text-muted)", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>#{item.sku}</span>}
+                      </div>
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: item.qty <= (item.low || 5) ? 'var(--danger-dark)' : 'var(--text-main)' }}>
                           {item.qty} in stock
                         </span>
-                        {item.qty <= (item.low || 5) && <span className="low-badge" style={{ marginLeft: 8 }}>Low Stock</span>}
+                        {item.qty <= (item.low || 5) && <span className="low-badge">Low</span>}
                       </div>
-                      {item.price > 0 && <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>Price: {fmt(item.price)}</div>}
+                      {item.price > 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>Price: {fmt(item.price)}</div>}
                     </div>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button onClick={() => setStockAdjId(item.id)} style={{ padding: "4px 8px", background: "#E0F2FE", color: "#0369A1", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>± Qty</button>
-                      <button onClick={() => startEdit(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 4 }}><i className="ti ti-pencil" /></button>
-                      <button onClick={() => setInvDeleteId(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-danger)", padding: 4 }}><i className="ti ti-trash" /></button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <button onClick={() => setStockAdjId(item.id)} className="btn btn-primary" style={{ padding: "6px 12px", fontSize: 12 }}>± Qty</button>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button onClick={() => startEdit(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><i className="ti ti-pencil" style={{ fontSize: 16 }}/></button>
+                        <button onClick={() => setInvDeleteId(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)" }}><i className="ti ti-trash" style={{ fontSize: 16 }}/></button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         )}
 
-        {/* CATEGORIES VIEW */}
+        {/* VIEW: CATEGORIES MANAGEMENT */}
         {view === "categories" && (
-          <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">Manage Categories</p>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 8, background: catMgmt.type === "sale" ? SALE_GREEN : "transparent", color: catMgmt.type === "sale" ? "white" : "var(--color-text-secondary)", border: `1px solid ${catMgmt.type === "sale" ? SALE_GREEN : "var(--color-border-secondary)"}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Sales</button>
-                <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 8, background: catMgmt.type === "expense" ? EXP_RED : "transparent", color: catMgmt.type === "expense" ? "white" : "var(--color-text-secondary)", border: `1px solid ${catMgmt.type === "expense" ? EXP_RED : "var(--color-border-secondary)"}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Expenses</button>
+          <div className="fade-in" style={{ padding: "20px" }}>
+            <h2 style={{ margin: "0 0 24px 0", fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px' }}>Categories</h2>
+            
+            <div className="card" style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, background: "#F1F5F9", padding: 4, borderRadius: 10 }}>
+                <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "sale" ? "var(--card-bg)" : "transparent", color: catMgmt.type === "sale" ? "var(--primary-dark)" : "var(--text-muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: catMgmt.type === "sale" ? "var(--shadow-sm)" : "none", transition: "all 0.2s" }}>Sales</button>
+                <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "expense" ? "var(--card-bg)" : "transparent", color: catMgmt.type === "expense" ? "var(--danger-dark)" : "var(--text-muted)", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: catMgmt.type === "expense" ? "var(--shadow-sm)" : "none", transition: "all 0.2s" }}>Expenses</button>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <input type="text" placeholder="New category name" value={catMgmt.newName} onChange={e => setCatMgmt({ ...catMgmt, newName: e.target.value })} style={{ flex: 1 }} />
-                <button onClick={addCategory} style={{ padding: "0 16px", background: "#111827", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Add</button>
+                <input type="text" placeholder="New category name" value={catMgmt.newName} onChange={e => setCatMgmt({ ...catMgmt, newName: e.target.value })} />
+                <button onClick={addCategory} className="btn" style={{ background: "var(--text-main)", color: "white", padding: "0 20px" }}>Add</button>
               </div>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {categories[catMgmt.type].map(c => (
                 <span key={c} className="pill-tag fade-in">
                   {c}
-                  <i onClick={() => removeCategory(catMgmt.type, c)} className="ti ti-x" style={{ cursor: "pointer", color: "var(--color-text-tertiary)" }} />
+                  <i onClick={() => removeCategory(catMgmt.type, c)} className="ti ti-x" style={{ cursor: "pointer", color: "var(--text-muted)", marginLeft: 4, background: "#F1F5F9", borderRadius: '50%', padding: 2 }} />
                 </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* MODALS */}
+        {/* STICKY BOTTOM NAV BAR SYSTEM */}
+        <div className="bottom-nav">
+          <button className={`nav-item ${view === 'history' ? 'active' : ''}`} onClick={() => setView('history')}>
+            <i className="ti ti-history" />
+            <span>History</span>
+          </button>
+          <button className={`nav-item ${view === 'inventory' ? 'active' : ''}`} onClick={() => setView('inventory')}>
+            <i className="ti ti-boxes" />
+            <span>Inventory</span>
+          </button>
+          <button className={`nav-item ${view === 'categories' ? 'active' : ''}`} onClick={() => setView('categories')}>
+            <i className="ti ti-tags" />
+            <span>Categories</span>
+          </button>
+        </div>
+
+        {/* MODALS ACTION SUB-SYSTEM LAYERS */}
         {deleteId && (
           <div className="modal-overlay" onClick={() => setDeleteId(null)}>
             <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
-              <p style={{ margin: "0 0 8px", fontWeight: 600, fontSize: 16 }}>Delete Entry?</p>
-              <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--color-text-secondary)" }}>Are you sure you want to delete this transaction? This cannot be undone.</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: 12, background: "#E5E7EB", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={confirmDeleteEntry} style={{ flex: 1, padding: 12, background: EXP_RED, color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Delete</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, color: 'var(--danger)' }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 24 }} />
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delete Entry?</h3>
+              </div>
+              <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 }}>Are you sure you want to delete this transaction? This action cannot be undone.</p>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => setDeleteId(null)} className="btn btn-outline" style={{ flex: 1 }}>Cancel</button>
+                <button onClick={confirmDeleteEntry} className="btn btn-danger" style={{ flex: 1 }}>Delete</button>
               </div>
             </div>
           </div>
@@ -135,11 +564,14 @@
         {invDeleteId && (
           <div className="modal-overlay" onClick={() => setInvDeleteId(null)}>
             <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
-              <p style={{ margin: "0 0 8px", fontWeight: 600, fontSize: 16 }}>Remove Item?</p>
-              <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--color-text-secondary)" }}>Are you sure you want to remove this item from your inventory?</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setInvDeleteId(null)} style={{ flex: 1, padding: 12, background: "#E5E7EB", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={async () => { await saveInventory(inventory.filter(i => i.id !== invDeleteId)); setInvDeleteId(null); }} style={{ flex: 1, padding: 12, background: EXP_RED, color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Remove</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, color: 'var(--danger)' }}>
+                <i className="ti ti-trash" style={{ fontSize: 24 }} />
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Remove Item?</h3>
+              </div>
+              <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 }}>Are you sure you want to remove this item from your inventory permanently?</p>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => setInvDeleteId(null)} className="btn btn-outline" style={{ flex: 1 }}>Cancel</button>
+                <button onClick={async () => { await saveInventory(inventory.filter(i => i.id !== invDeleteId)); setInvDeleteId(null); }} className="btn btn-danger" style={{ flex: 1 }}>Remove</button>
               </div>
             </div>
           </div>
@@ -148,12 +580,14 @@
         {stockAdjId && (
           <div className="modal-overlay" onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }}>
             <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
-              <p style={{ margin: "0 0 16px", fontWeight: 600, fontSize: 16 }}>Adjust Stock Quantity</p>
-              <input type="number" placeholder="Change amount (e.g. 5, -2)" value={stockAdj.delta} onChange={e => setStockAdj({ ...stockAdj, delta: e.target.value })} style={{ marginBottom: 12 }} />
-              <input type="text" placeholder="Reason (optional)" value={stockAdj.note} onChange={e => setStockAdj({ ...stockAdj, note: e.target.value })} style={{ marginBottom: 20 }} />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }} style={{ flex: 1, padding: 12, background: "#E5E7EB", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={applyStockAdj} style={{ flex: 1, padding: 12, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Apply Update</button>
+              <h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 700 }}>Adjust Stock Quantity</h3>
+              <div style={{ display: 'grid', gap: 12, marginBottom: 24 }}>
+                <input type="number" placeholder="Change amount (e.g. 5, -2)" value={stockAdj.delta} onChange={e => setStockAdj({ ...stockAdj, delta: e.target.value })} />
+                <input type="text" placeholder="Reason (optional)" value={stockAdj.note} onChange={e => setStockAdj({ ...stockAdj, note: e.target.value })} />
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }} className="btn btn-outline" style={{ flex: 1 }}>Cancel</button>
+                <button onClick={applyStockAdj} className="btn btn-primary" style={{ flex: 1 }}>Apply Update</button>
               </div>
             </div>
           </div>
