@@ -136,6 +136,15 @@
     }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .sync-dot.offline { background:#EF4444; animation:none; }
+
+    .dot-indicator {
+      width: 10px; height: 10px;
+      border-radius: 50%; border: 1px solid var(--color-border-primary);
+      background: transparent; transition: background 0.1s;
+    }
+    .dot-indicator.filled {
+      background: #0F6E56; border-color: #0F6E56;
+    }
   </style>
 </head>
 <body>
@@ -282,10 +291,12 @@
     const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
 
     const CLEAR_PIN = "2668";
-    const [clearAuth, setClearAuth] = useState({ unlocked: false, pin: "", error: "", attempts: 0, lockedUntil: null });
-    const [clearTarget, setClearTarget] = useState(null);
+    const [pinUnlocked, setPinUnlocked] = useState(false);
+    const [pinPromptOpen, setPinPromptOpen] = useState(false);
+    const [pinInput, setPinInput] = useState("");
+    const [pinError, setPinError] = useState(false);
+
     const [clearConfirm, setClearConfirm] = useState(false);
-    const [clearSuccess, setClearSuccess] = useState(null);
 
     const unsubscribers = useRef([]);
 
@@ -396,6 +407,43 @@
       await saveEntries(updated);
       setForm({ type: form.type, amount: "", category: "", note: "" });
       setView("dashboard");
+    };
+
+    const requestDeleteEntry = (id) => {
+      if (pinUnlocked) {
+        setDeleteId(id);
+      } else {
+        setPinInput("");
+        setPinError(false);
+        setPinPromptOpen(true);
+        // Save targeted action context to run automatically upon correct execution
+        window._pendingDeleteId = id;
+      }
+    };
+
+    const handlePinKeyPress = (num) => {
+      setPinError(false);
+      const nextInput = pinInput + num;
+      if (nextInput.length <= 4) {
+        setPinInput(nextInput);
+        if (nextInput.length === 4) {
+          if (nextInput === CLEAR_PIN) {
+            setPinUnlocked(true);
+            setPinPromptOpen(false);
+            if (window._pendingDeleteId) {
+              setDeleteId(window._pendingDeleteId);
+              window._pendingDeleteId = null;
+            }
+          } else {
+            setPinError(true);
+            setPinInput("");
+          }
+        }
+      }
+    };
+
+    const handlePinBackspace = () => {
+      setPinInput(pinInput.slice(0, -1));
     };
 
     const deleteEntry = async (id) => {
@@ -559,6 +607,11 @@
             </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {pinUnlocked && (
+              <span style={{ fontSize: 11, background: "var(--color-background-success)", color: "var(--color-text-success)", padding: "2px 8px", borderRadius: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <i className="ti ti-lock-open" style={{ fontSize: 12 }} /> Editing Enabled
+              </span>
+            )}
             {lowStockItems.length > 0 && (
               <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E", display: "flex", alignItems: "center", gap: 4 }}>
                 <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />{lowStockItems.length} low
@@ -624,8 +677,8 @@
                       <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: 600 }}>
                         {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
                       </span>
-                      <button onClick={() => setDeleteId(e.id)} style={{ border: 'none', background: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
-                        <i className="ti ti-trash" style={{ fontSize: 16 }} />
+                      <button onClick={() => requestDeleteEntry(e.id)} style={{ border: 'none', background: 'none', color: pinUnlocked ? EXP_RED : 'var(--color-text-tertiary)', cursor: 'pointer', padding: 4 }}>
+                        <i className={`ti ${pinUnlocked ? 'ti-trash' : 'ti-lock'}`} style={{ fontSize: 16 }} />
                       </button>
                     </div>
                   </div>
@@ -807,7 +860,7 @@
               </button>
             </div>
 
-            {/* Wipe Confirmation Overlay Modal Modal */}
+            {/* Wipe Confirmation Overlay Modal */}
             {clearConfirm && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 110 }}>
                 <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 360 }}>
@@ -817,7 +870,6 @@
                   </div>
                   <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--color-text-secondary)" }}>This will restore the workspace back to original factory parameters. Data states from current cloud pipeline will clear entirely.</p>
                   
-                  {/* Fixed the missing string quotes around the color value below */}
                   <div style={{ background: "var(--color-background-danger)", padding: 12, borderRadius: 8, marginTop: 20 }}>
                     <p style={{ fontSize: 12, color: "var(--color-text-danger)", margin: 0, fontWeight: 500 }}>⚠️ These actions cannot be undone. Make sure you have backed up your data before proceeding.</p>
                   </div>
@@ -829,6 +881,38 @@
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* PROTECTED SECURITY PAD OVERLAY MODAL */}
+        {pinPromptOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 200 }}>
+            <div className={`fade-in ${pinError ? 'shake' : ''}`} style={{ background: '#fff', borderRadius: 16, padding: "24px 20px", width: '100%', maxWidth: 300, textAlign: 'center' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: pinError ? 'var(--color-background-danger)' : 'var(--color-border-tertiary)', color: pinError ? 'var(--color-text-danger)' : '#0F6E56', display: 'flex', alignItems: 'center', justifyContext: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <i className={`ti ${pinError ? 'ti-lock-square-rounded-x' : 'ti-lock'}`} style={{ fontSize: 20 }} />
+              </div>
+              <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>Security Verification</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 12, color: pinError ? 'var(--color-text-danger)' : 'var(--color-text-secondary)' }}>
+                {pinError ? "Invalid security PIN code. Try again." : "Enter manager code to authorize delete actions."}
+              </p>
+
+              {/* Visualized Pin Length Indicators */}
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'center', marginBottom: 28 }}>
+                {[0, 1, 2, 3].map(idx => (
+                  <div key={idx} className={`dot-indicator ${pinInput.length > idx ? 'filled' : ''}`} />
+                ))}
+              </div>
+
+              {/* 3x4 Grid Button Pad layout */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: "12px 16px", justifyItems: 'center' }}>
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(num => (
+                  <button key={num} onClick={() => handlePinKeyPress(num)} className="pin-key">{num}</button>
+                ))}
+                <button onClick={() => { setPinPromptOpen(false); window._pendingDeleteId = null; }} className="pin-key danger" style={{ fontSize: 13 }}><i className="ti ti-x" /></button>
+                <button onClick={() => handlePinKeyPress("0")} className="pin-key">0</button>
+                <button onClick={handlePinBackspace} className="pin-key" style={{ fontSize: 15 }}><i className="ti ti-backspace" /></button>
+              </div>
+            </div>
           </div>
         )}
       </div>
