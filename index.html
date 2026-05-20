@@ -280,6 +280,8 @@
     const [stockAdjId, setStockAdjId] = useState(null);
     const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
 
+    const [clearConfirm, setClearConfirm] = useState({ show: false, type: null });
+
     const unsubscribers = useRef([]);
 
     useEffect(() => {
@@ -355,6 +357,18 @@
     const saveInventory = async (updated) => {
       setInventory(updated);
       try { await window._fb.set("inventory", JSON.stringify(updated)); } catch {}
+    };
+
+    const clearAllEntries = async () => {
+      await saveEntries({});
+      setClearConfirm({ show: false, type: null });
+    };
+
+    const clearAllData = async () => {
+      await saveEntries({});
+      await saveCategories(DEFAULT_CATEGORIES);
+      await saveInventory([]);
+      setClearConfirm({ show: false, type: null });
     };
 
     const dayEntries = entries[currentDate] || [];
@@ -538,6 +552,7 @@
       ["history", "ti-list", "History"],
       ["inventory", "ti-package", "Inventory"],
       ["categories", "ti-tags", "Categories"],
+      ["settings", "ti-settings", "Settings"],
     ];
 
     return (
@@ -833,6 +848,65 @@
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS VIEW */}
+        {view === "settings" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <p className="section-label">Settings</p>
+            
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 12px" }}>Data Management</p>
+              
+              <button onClick={() => setClearConfirm({ show: true, type: "entries" })} style={{ width: "100%", padding: 14, background: "#FEF3C7", color: "#92400E", border: "0.5px solid #FCD34D", borderRadius: 8, fontWeight: 600, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 16 }} />
+                Clear All Entries
+              </button>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Removes all sales and expense records from database</p>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <button onClick={() => setClearConfirm({ show: true, type: "all" })} style={{ width: "100%", padding: 14, background: EXP_RED, color: "white", border: "0.5px solid var(--color-border-danger)", borderRadius: 8, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                <i className="ti ti-trash" style={{ fontSize: 16 }} />
+                Clear All Data
+              </button>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Removes entries, categories, and inventory — resets to defaults</p>
+            </div>
+
+            <div style={{ background: "var(--color-background-danger)", padding: 12, borderRadius: 8, marginTop: 20 }}>
+              <p style={{ fontSize: 12, color: var(--color-text-danger), margin: 0, fontWeight: 500 }}>⚠️ These actions cannot be undone. Make sure you have backed up your data before proceeding.</p>
+            </div>
+          </div>
+        )}
+
+        {/* CONFIRMATION MODAL */}
+        {clearConfirm.show && (
+          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
+            <div style={{ background: "white", padding: 24, borderRadius: 12, maxWidth: 320, margin: "0 16px" }}>
+              <p style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: "var(--color-text-primary)" }}>
+                {clearConfirm.type === "entries" ? "Clear all entries?" : "Clear all data?"}
+              </p>
+              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>
+                {clearConfirm.type === "entries" 
+                  ? "This will delete all sales and expense records. This action cannot be undone."
+                  : "This will delete all entries, categories, and inventory data. Everything will reset to defaults. This action cannot be undone."}
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => {
+                  if (clearConfirm.type === "entries") {
+                    clearAllEntries();
+                  } else {
+                    clearAllData();
+                  }
+                }} style={{ flex: 1, padding: 12, background: EXP_RED, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                  {clearConfirm.type === "entries" ? "Clear Entries" : "Clear All"}
+                </button>
+                <button onClick={() => setClearConfirm({ show: false, type: null })} style={{ flex: 1, padding: 12, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
