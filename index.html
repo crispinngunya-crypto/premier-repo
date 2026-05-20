@@ -145,7 +145,7 @@
   <div style="text-align:center;padding:40px 24px;">
     <div style="font-size:48px;margin-bottom:12px;">💹</div>
     <div style="width:28px;height:28px;border:2px solid #E5E7EB;border-top:2px solid #0F6E56;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
-    <p style="margin:0;font-size:14px;color:#6B7280;">Connecting to cloud…</p>
+    <p style="margin:0;font-size:14px;color:#6B7280;">Connecting to cloud database…</p>
   </div>
 </div>
 
@@ -155,20 +155,21 @@
   <div id="sync-bar" style="background:#F0FDF4;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid #D1FAE5;max-width:460px;margin:0 auto;">
     <span style="font-size:11px;color:#065F46;font-weight:600;display:flex;align-items:center;">
       <span class="sync-dot" id="sync-dot"></span>
-      <span id="sync-label">Connected — real-time sync on</span>
+      <span id="sync-label">Connected — real-time database live</span>
     </span>
   </div>
   <div id="root"></div>
 </div>
 
-<!-- React + Babel + Firebase Dependencies -->
+<!-- Dependencies -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 
+<!-- Database Layer Module -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyACGvhzECNTVzMgNRJMxGei0480kdI9BQc",
@@ -185,24 +186,24 @@
 
   window._fb = {
     async get(key) {
-      const ref = doc(window._fbDb, "salestracker", key);
-      const snap = await getDoc(ref);
-      return snap.exists() ? { key, value: JSON.stringify(snap.data().v) } : null;
+      const dbRef = ref(window._fbDb, `salestracker/${key}`);
+      const snap = await get(dbRef);
+      return snap.exists() ? { key, value: JSON.stringify(snap.val()) } : null;
     },
     async set(key, value) {
-      const ref = doc(window._fbDb, "salestracker", key);
-      await setDoc(ref, { v: JSON.parse(value) });
+      const dbRef = ref(window._fbDb, `salestracker/${key}`);
+      await set(dbRef, JSON.parse(value));
       return { key, value };
     },
     async delete(key) {
-      const ref = doc(window._fbDb, "salestracker", key);
-      await setDoc(ref, { v: null });
+      const dbRef = ref(window._fbDb, `salestracker/${key}`);
+      await set(dbRef, null);
       return { key, deleted: true };
     },
     subscribe(key, callback) {
-      const ref = doc(window._fbDb, "salestracker", key);
-      return onSnapshot(ref, (snap) => {
-        callback(snap.exists() ? JSON.stringify(snap.data().v) : null);
+      const dbRef = ref(window._fbDb, `salestracker/${key}`);
+      return onValue(dbRef, (snap) => {
+        callback(snap.exists() ? JSON.stringify(snap.val()) : null);
       });
     }
   };
@@ -219,7 +220,8 @@
 
   try {
     const app = initializeApp(FIREBASE_CONFIG);
-    window._fbDb = getFirestore(app);
+    window._fbDb = getDatabase(app);
+    
     if (window._reactReadySignal) {
       launchApp();
     } else {
@@ -229,13 +231,13 @@
     document.getElementById("setup-screen").innerHTML =
       `<div style="padding:40px 24px;text-align:center;font-family:sans-serif;">
         <p style="font-size:32px;">⚠️</p>
-        <p style="font-size:16px;font-weight:700;">Could not connect to Firebase</p>
+        <p style="font-size:16px;font-weight:700;">Could not connect to Realtime Database</p>
         <p style="font-size:13px;color:#6B7280;">${e.message}</p>
-        <p style="font-size:12px;color:#9CA3AF;">Make sure Firestore is enabled in the Firebase console.</p>
       </div>`;
   }
 </script>
 
+<!-- Interface Engine Block -->
 <script type="text/babel">
   const { useState, useEffect, useRef } = React;
 
@@ -272,7 +274,6 @@
     const [histGroup, setHistGroup] = useState("day");
     const [collapsedGroups, setCollapsedGroups] = useState({});
     const [catMgmt, setCatMgmt] = useState({ open: false, type: "sale", newName: "" });
-    const [expandedCats, setExpandedCats] = useState({});
 
     const [invForm, setInvForm] = useState({ name: "", sku: "", qty: "", price: "", low: "" });
     const [invEditId, setInvEditId] = useState(null);
@@ -280,7 +281,11 @@
     const [stockAdjId, setStockAdjId] = useState(null);
     const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
 
-    const [clearConfirm, setClearConfirm] = useState({ show: false, type: null });
+    const CLEAR_PIN = "2668";
+    const [clearAuth, setClearAuth] = useState({ unlocked: false, pin: "", error: "", attempts: 0, lockedUntil: null });
+    const [clearTarget, setClearTarget] = useState(null);
+    const [clearConfirm, setClearConfirm] = useState(false);
+    const [clearSuccess, setClearSuccess] = useState(null);
 
     const unsubscribers = useRef([]);
 
@@ -322,14 +327,14 @@
         const dot = document.querySelector(".sync-dot");
         if (dot) dot.classList.remove("offline"); 
         const lbl = document.getElementById("sync-label");
-        if (lbl) lbl.textContent = "Connected — real-time sync on"; 
+        if (lbl) lbl.textContent = "Connected — real-time database live"; 
       };
       const onOffline = () => { 
         setSyncStatus("offline"); 
         const dot = document.querySelector(".sync-dot");
         if (dot) dot.classList.add("offline"); 
         const lbl = document.getElementById("sync-label");
-        if (lbl) lbl.textContent = "Offline — changes will sync when reconnected"; 
+        if (lbl) lbl.textContent = "Offline — changes will save locally and sync when online"; 
       };
       window.addEventListener("online", onOnline);
       window.addEventListener("offline", onOffline);
@@ -357,18 +362,6 @@
     const saveInventory = async (updated) => {
       setInventory(updated);
       try { await window._fb.set("inventory", JSON.stringify(updated)); } catch {}
-    };
-
-    const clearAllEntries = async () => {
-      await saveEntries({});
-      setClearConfirm({ show: false, type: null });
-    };
-
-    const clearAllData = async () => {
-      await saveEntries({});
-      await saveCategories(DEFAULT_CATEGORIES);
-      await saveInventory([]);
-      setClearConfirm({ show: false, type: null });
     };
 
     const dayEntries = entries[currentDate] || [];
@@ -411,13 +404,6 @@
       setDeleteId(null);
     };
 
-    const deleteEntryFromHistory = async (entry) => {
-      const dayArr = (entries[entry.dateStr] || []).filter(e => e.id !== entry.id);
-      const updated = { ...entries, [entry.dateStr]: dayArr };
-      await saveEntries(updated);
-      setDeleteId(null);
-    };
-
     const shiftDate = (days) => {
       const d = new Date(currentDate + "T12:00:00");
       d.setDate(d.getDate() + days);
@@ -437,11 +423,6 @@
     const removeCategory = async (type, name) => {
       const updated = { ...categories, [type]: categories[type].filter(c => c !== name) };
       await saveCategories(updated);
-      setExpandedCats(e => ({ ...e, [name]: false }));
-    };
-
-    const toggleCategoryExpand = (catName) => {
-      setExpandedCats(e => ({ ...e, [catName]: !e[catName] }));
     };
 
     const addOrUpdateInventory = async () => {
@@ -453,7 +434,7 @@
         await saveInventory(updated);
         setInvEditId(null);
       } else {
-        const item = { id: Date.now().toString(), name: invForm.name.trim(), sku: invForm.sku.trim(), qty: parseInt(invForm.qty), price: parseFloat(invForm.price) || 0, low: parseInt(invForm.low) || 5 };
+        const item = { id: Date.now().toString(), name: invForm.name.trim(), sku: invForm.sku.trim(), qty: parseInt(invForm.qty), price: parseFloat(invForm.price) || 0, low: parseInt(invForm.low) || 5, history: [] };
         await saveInventory([...inventory, item]);
       }
       setInvForm({ name: "", sku: "", qty: "", price: "", low: "" });
@@ -539,12 +520,22 @@
 
     const toggleGroup = (key) => setCollapsedGroups(c => ({ ...c, [key]: !c[key] }));
 
-    if (loading) return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 12 }}>
-        <div style={{ width: 32, height: 32, border: "2px solid var(--color-border-secondary)", borderTop: `2px solid ${SALE_GREEN}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-        <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Connecting to cloud…</p>
-      </div>
-    );
+    const handleClearData = async () => {
+      setSaving(true);
+      try {
+        await window._fb.set("entries", JSON.stringify({}));
+        await window._fb.set("inventory", JSON.stringify([]));
+        await window._fb.set("categories", JSON.stringify(DEFAULT_CATEGORIES));
+        setEntries({});
+        setInventory([]);
+        setCategories(DEFAULT_CATEGORIES);
+        setClearConfirm(false);
+        setView("dashboard");
+      } catch (err) {
+        console.error("Failed to wipe database: ", err);
+      }
+      setSaving(false);
+    };
 
     const navItems = [
       ["dashboard", "ti-layout-dashboard", "Summary"],
@@ -552,13 +543,12 @@
       ["history", "ti-list", "History"],
       ["inventory", "ti-package", "Inventory"],
       ["categories", "ti-tags", "Categories"],
-      ["settings", "ti-settings", "Settings"],
     ];
 
     return (
       <div style={{ fontFamily: "var(--font-sans)", paddingBottom: 90 }} className="safe-top">
-        {/* Header */}
-        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Header toolbar */}
+        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyBetween: "space-between", justifyContent: 'space-between' }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={() => shiftDate(-1)} style={{ border: "none", background: "none", cursor: "pointer", padding: 6, color: "var(--color-text-secondary)" }}>
               <i className="ti ti-chevron-left" style={{ fontSize: 18 }} />
@@ -570,7 +560,7 @@
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {lowStockItems.length > 0 && (
-              <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E" }}>
+              <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E", display: "flex", alignItems: "center", gap: 4 }}>
                 <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />{lowStockItems.length} low
               </button>
             )}
@@ -583,10 +573,10 @@
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Tab Navigation */}
         <div style={{ display: "flex", borderBottom: "0.5px solid var(--color-border-tertiary)", margin: "12px 0 0", padding: "0 8px", overflowX: "auto" }}>
           {navItems.map(([v, icon, label]) => (
-            <button key={v} onClick={() => { setView(v); }} className={`tab-btn${view === v ? " active" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
+            <button key={v} onClick={() => setView(v)} className={`tab-btn${view === v ? " active" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
               <i className={`ti ${icon}`} style={{ fontSize: 15, display: "block", margin: "0 auto 2px" }} />
               {label}
             </button>
@@ -597,9 +587,7 @@
         {view === "dashboard" && (
           <div className="fade-in" style={{ padding: "16px" }}>
             <div style={{ background: net >= 0 ? "var(--color-background-success)" : "var(--color-background-danger)", borderRadius: "var(--border-radius-lg)", padding: "20px", marginBottom: 12, textAlign: "center" }}>
-              <p style={{ fontSize: 11, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>
-                Net {net >= 0 ? "Profit" : "Loss"}
-              </p>
+              <p style={{ fontSize: 11, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Net Balance — {displayDate(currentDate)}</p>
               <p style={{ fontSize: 32, fontWeight: 600, margin: 0, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)" }}>{fmt(Math.abs(net))}</p>
             </div>
 
@@ -624,33 +612,49 @@
             
             {dayEntries.length > 0 ? (
               <div>
-                <p className="section-label">Entries — Today</p>
+                <p className="section-label">Records Summary</p>
                 {dayEntries.map(e => (
-                  <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--color-border-secondary)" }}>
-                    <span>{e.category} <small style={{color: 'gray'}}>({e.time})</small></span>
-                    <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: "bold" }}>
-                      {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
-                    </span>
+                  <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: 'center', padding: "12px 0", borderBottom: "1px solid var(--color-border-secondary)" }}>
+                    <div>
+                      <span style={{ fontWeight: 500, display: 'block' }}>{e.category}</span>
+                      {e.note && <small style={{ color: "var(--color-text-secondary)", display: 'block' }}>{e.note}</small>}
+                      <small style={{ color: "var(--color-text-tertiary)" }}>{e.time}</small>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: 600 }}>
+                        {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
+                      </span>
+                      <button onClick={() => setDeleteId(e.id)} style={{ border: 'none', background: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
+                        <i className="ti ti-trash" style={{ fontSize: 16 }} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No entries recorded for this date.</p>}
+
+            {deleteId && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 100 }}>
+                <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 320 }}>
+                  <h3 style={{ margin: '0 0 8px' }}>Delete Entry?</h3>
+                  <p style={{ margin: '0 0 20px', fontSize: 14, color: 'var(--color-text-secondary)' }}>Are you sure you want to completely remove this transaction record?</p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: 10, border: '1px solid var(--color-border-primary)', borderRadius: 8, background: '#fff' }}>Cancel</button>
+                    <button onClick={() => deleteEntry(deleteId)} style={{ flex: 1, padding: 10, border: 'none', borderRadius: 8, background: EXP_RED, color: '#fff', fontWeight: 600 }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        <div style={{ background: "var(--color-background-danger)", padding: 12, borderRadius: 8, marginTop: 20 }}>
-  <p style={{ fontSize: 12, color: "var(--color-text-danger)", margin: 0, fontWeight: 500 }}>⚠️ These actions cannot be undone. Make sure you have backed up your data before proceeding.</p>
-</div>
+        {/* ADD TRANSACTIONS VIEW */}
         {view === "add" && (
           <div className="fade-in" style={{ padding: "16px" }}>
             <p className="section-label">Add Transaction Record</p>
             <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-              <button onClick={() => setForm({ ...form, type: "sale" })} style={{ flex: 1, padding: 12, background: form.type === "sale" ? SALE_GREEN : "#eee", color: form.type === "sale" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                + Sale
-              </button>
-              <button onClick={() => setForm({ ...form, type: "expense" })} style={{ flex: 1, padding: 12, background: form.type === "expense" ? EXP_RED : "#eee", color: form.type === "expense" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                - Expense
-              </button>
+              <button onClick={() => setForm({ ...form, type: "sale" })} style={{ flex: 1, padding: 12, background: form.type === "sale" ? SALE_GREEN : "var(--color-border-tertiary)", color: form.type === "sale" ? "#fff" : "var(--color-text-primary)", border: "none", borderRadius: 8, fontWeight: "bold" }}>Income / Sale</button>
+              <button onClick={() => setForm({ ...form, type: "expense" })} style={{ flex: 1, padding: 12, background: form.type === "expense" ? EXP_RED : "var(--color-border-tertiary)", color: form.type === "expense" ? "#fff" : "var(--color-text-primary)", border: "none", borderRadius: 8, fontWeight: "bold" }}>Expense</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input type="number" placeholder="Amount (KES)" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
@@ -659,257 +663,172 @@
                 {categories[form.type].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <input type="text" placeholder="Add optional description note..." value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} />
-              <button onClick={addEntry} style={{ padding: 14, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", marginTop: 8 }}>Save Entry</button>
+              <button onClick={addEntry} style={{ padding: 14, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", marginTop: 8 }}>Save Entry to Database</button>
             </div>
           </div>
         )}
 
-        {/* HISTORY VIEW */}
+        {/* HISTORY OVERVIEW VIEW */}
         {view === "history" && (
           <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">Transaction History</p>
-            <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
-              {["day", "week", "month", "year"].map(m => (
-                <button key={m} onClick={() => { setHistGroup(m); setCollapsedGroups({}); }} style={{ padding: "6px 12px", border: "1px solid", borderColor: histGroup === m ? SALE_GREEN : "var(--color-border-secondary)", background: "white", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: histGroup === m ? 600 : 500 }}>
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
-            {buildHistoryGroups().length > 0 ? buildHistoryGroups().map(group => (
-              <div key={group.key} style={{ marginBottom: 12 }}>
-                <button onClick={() => toggleGroup(group.key)} style={{ width: "100%", padding: "10px 12px", background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ textAlign: "left" }}>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{group.label}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                      <span style={{ color: SALE_GREEN }}>+{fmt(group.sales)}</span>
-                      {" · "}
-                      <span style={{ color: EXP_RED }}>-{fmt(group.expenses)}</span>
-                    </p>
-                  </div>
-                  <i className={`ti ti-chevron-${collapsedGroups[group.key] ? "right" : "down"}`} style={{ fontSize: 18 }} />
-                </button>
-                {!collapsedGroups[group.key] && (
-                  <div style={{ marginTop: 8 }}>
-                    {group.entries.map(e => (
-                      <div key={e.id} style={{ padding: "8px 12px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
-                        <div>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{e.category}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>{e.time}</p>
-                        </div>
-                        <button onClick={() => setDeleteId(deleteId === e.id ? null : e.id)} style={{ border: "none", background: "none", cursor: "pointer", color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: "bold", fontSize: 14 }}>
-                          {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No transaction history recorded.</p>}
-          </div>
-        )}
-
-        {/* INVENTORY VIEW */}
-        {view === "inventory" && (
-          <div className="fade-in" style={{ padding: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <p className="section-label">Inventory</p>
-              <button onClick={() => { setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); setInvEditId(null); }} style={{ background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-                + Add Item
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <p className="section-label" style={{ margin: 0 }}>Transaction History Ledger</p>
+              <select style={{ width: 'auto', padding: '4px 8px', fontSize: 12 }} value={histGroup} onChange={e => setHistGroup(e.target.value)}>
+                <option value="day">Group by Day</option>
+                <option value="week">Group by Week</option>
+                <option value="month">Group by Month</option>
+                <option value="year">Group by Year</option>
+              </select>
             </div>
 
-            {invEditId ? (
-              <div style={{ background: "var(--color-background-secondary)", padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input type="text" placeholder="Item name" value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} />
-                  <input type="text" placeholder="SKU (optional)" value={invForm.sku} onChange={e => setInvForm({ ...invForm, sku: e.target.value })} />
-                  <input type="number" placeholder="Quantity" value={invForm.qty} onChange={e => setInvForm({ ...invForm, qty: e.target.value })} />
-                  <input type="number" placeholder="Unit price" value={invForm.price} onChange={e => setInvForm({ ...invForm, price: e.target.value })} />
-                  <input type="number" placeholder="Low stock level" value={invForm.low} onChange={e => setInvForm({ ...invForm, low: e.target.value })} />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={addOrUpdateInventory} style={{ flex: 1, padding: 10, background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
-                      Update
-                    </button>
-                    <button onClick={() => { setInvEditId(null); }} style={{ flex: 1, padding: 10, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {inventory.length > 0 ? inventory.map(item => (
-              <div key={item.id} style={{ background: "var(--color-background-secondary)", padding: 12, borderRadius: 8, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 8 }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{item.name}</p>
-                    {item.sku && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>SKU: {item.sku}</p>}
-                  </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => startEdit(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-info)", fontSize: 14 }}>
-                      <i className="ti ti-edit" />
-                    </button>
-                    <button onClick={() => setInvDeleteId(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: EXP_RED, fontSize: 14 }}>
-                      <i className="ti ti-trash" />
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 12, marginBottom: 10 }}>
-                  <div>
-                    <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>Qty</p>
-                    <p style={{ margin: "2px 0 0", fontWeight: 600, fontSize: 16, color: item.qty <= item.low ? EXP_RED : SALE_GREEN }}>
-                      {item.qty}
-                      {item.qty <= item.low && <span className="low-badge" style={{ marginLeft: 6 }}>Low</span>}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>Unit Price</p>
-                    <p style={{ margin: "2px 0 0", fontWeight: 600 }}>{fmt(item.price)}</p>
-                  </div>
-                </div>
-                <button onClick={() => setStockAdjId(item.id)} style={{ width: "100%", padding: 8, background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
-                  Adjust Stock
-                </button>
-              </div>
-            )) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No items in inventory.</p>}
-
-            {stockAdjId && (
-              <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 1000 }}>
-                <div style={{ width: "100%", background: "white", borderRadius: "16px 16px 0 0", padding: 20, maxWidth: 460, margin: "0 auto" }}>
-                  <p className="section-label">Adjust Stock</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
-                    <input type="number" placeholder="Quantity change (+ or -)" value={stockAdj.delta} onChange={e => setStockAdj({ ...stockAdj, delta: e.target.value })} />
-                    <input type="text" placeholder="Note (optional)" value={stockAdj.note} onChange={e => setStockAdj({ ...stockAdj, note: e.target.value })} />
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={applyStockAdj} style={{ flex: 1, padding: 12, background: SALE_GREEN, color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>
-                        Apply
-                      </button>
-                      <button onClick={() => setStockAdjId(null)} style={{ flex: 1, padding: 12, background: "#ddd", color: "#333", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>
-                        Cancel
-                      </button>
+            {buildHistoryGroups().map(g => {
+              const isCollapsed = collapsedGroups[g.key];
+              return (
+                <div key={g.key} style={{ marginBottom: 12, border: '1px solid var(--color-border-secondary)', borderRadius: 8, overflow: 'hidden' }}>
+                  <div onClick={() => toggleGroup(g.key)} style={{ background: 'var(--color-background-secondary)', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{g.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+                      <span style={{ color: SALE_GREEN, fontWeight: 500 }}>+{fmt(g.sales)}</span>
+                      <span style={{ color: EXP_RED, fontWeight: 500 }}>-{fmt(g.expenses)}</span>
+                      <i className={`ti ${isCollapsed ? 'ti-chevron-down' : 'ti-chevron-up'}`} style={{ color: 'var(--color-text-tertiary)' }} />
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {invDeleteId && (
-              <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001 }}>
-                <div style={{ background: "white", padding: 24, borderRadius: 12, maxWidth: 300 }}>
-                  <p style={{ fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Delete item?</p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => deleteInventory(invDeleteId)} style={{ flex: 1, padding: 10, background: EXP_RED, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
-                      Delete
-                    </button>
-                    <button onClick={() => setInvDeleteId(null)} style={{ flex: 1, padding: 10, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* CATEGORIES VIEW */}
-        {view === "categories" && (
-          <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">Manage Categories</p>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "sale" ? SALE_GREEN : "#eee", color: catMgmt.type === "sale" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                Sales
-              </button>
-              <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "expense" ? EXP_RED : "#eee", color: catMgmt.type === "expense" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                Expenses
-              </button>
-            </div>
-
-            <div style={{ background: "var(--color-background-secondary)", padding: 12, borderRadius: 8, marginBottom: 16, display: "flex", gap: 8 }}>
-              <input type="text" placeholder="New category name" value={catMgmt.newName} onChange={e => setCatMgmt({ ...catMgmt, newName: e.target.value })} style={{ flex: 1 }} />
-              <button onClick={addCategory} style={{ padding: 10, background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-                Add
-              </button>
-            </div>
-
-            <div>
-              {categories[catMgmt.type].map(cat => (
-                <div key={cat}>
-                  <button onClick={() => toggleCategoryExpand(cat)} style={{ width: "100%", padding: "10px 12px", background: "var(--color-background-secondary)", borderRadius: 6, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", border: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                    <span style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>{cat}</span>
-                    <i className={`ti ti-chevron-${expandedCats[cat] ? "down" : "right"}`} style={{ fontSize: 16, color: "var(--color-text-secondary)" }} />
-                  </button>
-                  {expandedCats[cat] && (
-                    <div style={{ padding: "0 12px 8px", marginBottom: 8, display: "flex", gap: 6 }}>
-                      <button onClick={() => removeCategory(catMgmt.type, cat)} style={{ flex: 1, padding: 10, background: EXP_RED, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
-                        Delete
-                      </button>
-                      <button onClick={() => toggleCategoryExpand(cat)} style={{ flex: 1, padding: 10, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
-                        Cancel
-                      </button>
+                  {!isCollapsed && (
+                    <div style={{ padding: '0 12px', background: '#fff' }}>
+                      {g.entries.map((e, idx) => (
+                        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: idx === g.entries.length - 1 ? 'none' : '1px solid var(--color-border-tertiary)' }}>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>{e.category}</span>
+                            {histGroup !== 'day' && <small style={{ display: 'block', color: 'var(--color-text-tertiary)' }}>{displayDate(e.dateStr)}</small>}
+                          </div>
+                          <span style={{ color: e.type === 'sale' ? SALE_GREEN : EXP_RED, fontSize: 13, fontWeight: 600 }}>
+                            {e.type === 'sale' ? '+' : '-'}{fmt(e.amount)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 
-        {/* SETTINGS VIEW */}
-        {view === "settings" && (
+        {/* INVENTORY MANAGEMENT VIEW */}
+        {view === "inventory" && (
           <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">Settings</p>
-            
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 12px" }}>Data Management</p>
-              
-              <button onClick={() => setClearConfirm({ show: true, type: "entries" })} style={{ width: "100%", padding: 14, background: "#FEF3C7", color: "#92400E", border: "0.5px solid #FCD34D", borderRadius: 8, fontWeight: 600, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
-                <i className="ti ti-alert-triangle" style={{ fontSize: 16 }} />
-                Clear All Entries
-              </button>
-              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Removes all sales and expense records from database</p>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <button onClick={() => setClearConfirm({ show: true, type: "all" })} style={{ width: "100%", padding: 14, background: EXP_RED, color: "white", border: "0.5px solid var(--color-border-danger)", borderRadius: 8, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
-                <i className="ti ti-trash" style={{ fontSize: 16 }} />
-                Clear All Data
-              </button>
-              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Removes entries, categories, and inventory — resets to defaults</p>
-            </div>
-
-            <div style={{ background: "var(--color-background-danger)", padding: 12, borderRadius: 8, marginTop: 20 }}>
-              <p style={{ fontSize: 12, color: var(--color-text-danger), margin: 0, fontWeight: 500 }}>⚠️ These actions cannot be undone. Make sure you have backed up your data before proceeding.</p>
-            </div>
-          </div>
-        )}
-
-        {/* CONFIRMATION MODAL */}
-        {clearConfirm.show && (
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-            <div style={{ background: "white", padding: 24, borderRadius: 12, maxWidth: 320, margin: "0 16px" }}>
-              <p style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: "var(--color-text-primary)" }}>
-                {clearConfirm.type === "entries" ? "Clear all entries?" : "Clear all data?"}
-              </p>
-              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>
-                {clearConfirm.type === "entries" 
-                  ? "This will delete all sales and expense records. This action cannot be undone."
-                  : "This will delete all entries, categories, and inventory data. Everything will reset to defaults. This action cannot be undone."}
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => {
-                  if (clearConfirm.type === "entries") {
-                    clearAllEntries();
-                  } else {
-                    clearAllData();
-                  }
-                }} style={{ flex: 1, padding: 12, background: EXP_RED, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
-                  {clearConfirm.type === "entries" ? "Clear Entries" : "Clear All"}
-                </button>
-                <button onClick={() => setClearConfirm({ show: false, type: null })} style={{ flex: 1, padding: 12, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
-                  Cancel
-                </button>
+            <p className="section-label">{invEditId ? "Edit Item Properties" : "Register Stock Item"}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }} className="card">
+              <input type="text" placeholder="Item Name" value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="text" placeholder="SKU / Barcode" value={invForm.sku} onChange={e => setInvForm({ ...invForm, sku: e.target.value })} />
+                <input type="number" placeholder="Stock Qty" disabled={!!invEditId} value={invForm.qty} onChange={e => setInvForm({ ...invForm, qty: e.target.value })} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="number" placeholder="Retail Price" value={invForm.price} onChange={e => setInvForm({ ...invForm, price: e.target.value })} />
+                <input type="number" placeholder="Low Stock Trigger Alert" value={invForm.low} onChange={e => setInvForm({ ...invForm, low: e.target.value })} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                {invEditId && <button onClick={() => { setInvEditId(null); setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); }} style={{ flex: 1, padding: 10, background: '#fff', border: '1px solid var(--color-border-primary)', borderRadius: 8 }}>Cancel</button>}
+                <button onClick={addOrUpdateInventory} style={{ flex: 2, padding: 10, background: '#0F6E56', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600 }}>{invEditId ? "Apply Modifications" : "Add to Stock Roll"}</button>
               </div>
             </div>
+
+            <p className="section-label">Active Ledger Inventory</p>
+            {inventory.map(item => {
+              const isLow = item.qty <= (item.low || 5);
+              return (
+                <div key={item.id} style={{ padding: 12, borderBottom: '1px solid var(--color-border-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{item.name}</span>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <span className={isLow ? "out-badge" : "low-badge"} style={{ background: isLow ? 'var(--color-background-danger)' : 'var(--color-border-tertiary)', color: isLow ? 'var(--color-text-danger)' : 'var(--color-text-secondary)' }}>Qty: {item.qty}</span>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{fmt(item.price || 0)}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setStockAdjId(item.id)} style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--color-border-primary)', background: '#fff' }}>Adj Qty</button>
+                    <button onClick={() => startEdit(item)} style={{ padding: '6px', borderRadius: 6, border: 'none', background: 'var(--color-border-tertiary)' }}><i className="ti ti-edit" /></button>
+                    <button onClick={() => setInvDeleteId(item.id)} style={{ padding: '6px', borderRadius: 6, border: 'none', background: 'var(--color-background-danger)', color: 'var(--color-text-danger)' }}><i className="ti ti-trash" /></button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Adjust Stock Level Overlay Modal */}
+            {stockAdjId && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 100 }}>
+                <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 320 }}>
+                  <h3 style={{ margin: '0 0 12px' }}>Adjust Level Stock</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <input type="number" placeholder="Delta (e.g. +10 or -5)" value={stockAdj.delta} onChange={e => setStockAdj({ ...stockAdj, delta: e.target.value })} />
+                    <input type="text" placeholder="Adjustment Note" value={stockAdj.note} onChange={e => setStockAdj({ ...stockAdj, note: e.target.value })} />
+                    <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                      <button onClick={() => setStockAdjId(null)} style={{ flex: 1, padding: 10, border: '1px solid var(--color-border-primary)', borderRadius: 8, background: '#fff' }}>Cancel</button>
+                      <button onClick={applyStockAdj} style={{ flex: 1, padding: 10, border: 'none', borderRadius: 8, background: '#0F6E56', color: '#fff', fontWeight: 600 }}>Save Level</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CATEGORIES MANAGEMENT & WIPE PANEL */}
+        {view === "categories" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <p className="section-label">Manage Categories</p>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+              <button onClick={() => setCatMgmt({ ...catMgmt, type: 'sale' })} style={{ flex: 1, padding: 8, fontSize: 12, borderRadius: 6, border: 'none', background: catMgmt.type === 'sale' ? SALE_GREEN : 'var(--color-border-tertiary)', color: catMgmt.type === 'sale' ? '#fff' : 'var(--color-text-primary)', fontWeight: 600 }}>Sales Labels</button>
+              <button onClick={() => setCatMgmt({ ...catMgmt, type: 'expense' })} style={{ flex: 1, padding: 8, fontSize: 12, borderRadius: 6, border: 'none', background: catMgmt.type === 'expense' ? EXP_RED : 'var(--color-border-tertiary)', color: catMgmt.type === 'expense' ? '#fff' : 'var(--color-text-primary)', fontWeight: 600 }}>Expense Labels</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <input type="text" placeholder={`New ${catMgmt.type} label name...`} value={catMgmt.newName} onChange={e => setCatMgmt({ ...catMgmt, newName: e.target.value })} />
+              <button onClick={addCategory} style={{ width: 'auto', padding: '0 16px', background: '#0F6E56', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600 }}>Add</button>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 40 }}>
+              {categories[catMgmt.type].map(c => (
+                <span key={c} className="pill-tag">
+                  {c}
+                  <i className="ti ti-x" onClick={() => removeCategory(catMgmt.type, c)} style={{ cursor: 'pointer', fontSize: 12, marginLeft: 4, color: 'var(--color-text-tertiary)' }} />
+                </span>
+              ))}
+            </div>
+
+            {/* Clear Database Actions Section */}
+            <p className="section-label" style={{ color: "var(--color-text-danger)" }}>System Maintenance & Purge</p>
+            <div style={{ border: "1px solid var(--color-border-danger)", borderRadius: 10, padding: 14 }} className="card">
+              <h4 style={{ margin: "0 0 6px", color: "var(--color-text-danger)" }}>Wipe Ledger Database</h4>
+              <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--color-text-secondary)" }}>Permanently purges all transaction logs, categories custom allocations, and inventory stock rolls.</p>
+              <button onClick={() => setClearConfirm(true)} style={{ background: "var(--color-background-danger)", border: "1px solid var(--color-border-danger)", color: "var(--color-text-danger)", padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Execute Complete System Wipe
+              </button>
+            </div>
+
+            {/* Wipe Confirmation Overlay Modal Modal */}
+            {clearConfirm && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 110 }}>
+                <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 360 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, color: "var(--color-text-danger)" }}>
+                    <i className="ti ti-alert-triangle" style={{ fontSize: 22 }} />
+                    <h3 style={{ margin: 0 }}>Absolute Hard Reset?</h3>
+                  </div>
+                  <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--color-text-secondary)" }}>This will restore the workspace back to original factory parameters. Data states from current cloud pipeline will clear entirely.</p>
+                  
+                  {/* Fixed the missing string quotes around the color value below */}
+                  <div style={{ background: "var(--color-background-danger)", padding: 12, borderRadius: 8, marginTop: 20 }}>
+                    <p style={{ fontSize: 12, color: "var(--color-text-danger)", margin: 0, fontWeight: 500 }}>⚠️ These actions cannot be undone. Make sure you have backed up your data before proceeding.</p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                    <button onClick={() => setClearConfirm(false)} style={{ flex: 1, padding: 12, border: '1px solid var(--color-border-primary)', borderRadius: 8, background: '#fff', fontWeight: 500 }}>Cancel</button>
+                    <button onClick={handleClearData} style={{ flex: 1, padding: 12, border: 'none', borderRadius: 8, background: EXP_RED, color: '#fff', fontWeight: 600 }}>Wipe All Data</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
