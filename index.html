@@ -149,7 +149,7 @@
   </div>
 </div>
 
-<!-- Main app (hidden until Firebase connected) -->
+<!-- Main app screen -->
 <div id="app-screen" style="display:none;">
   <!-- Sync status bar -->
   <div id="sync-bar" style="background:#F0FDF4;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid #D1FAE5;max-width:460px;margin:0 auto;">
@@ -157,12 +157,11 @@
       <span class="sync-dot" id="sync-dot"></span>
       <span id="sync-label">Connected — real-time sync on</span>
     </span>
-
   </div>
   <div id="root"></div>
 </div>
 
-<!-- React + Babel + Firebase -->
+<!-- React + Babel + Firebase Dependencies -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -171,15 +170,14 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // ── Pre-configured for Premier Sales Tracker ──
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyACGvhzECNTVzMgNRJMxGei0480kdI9BQc",
-  authDomain: "premier-sales-tracker-b7920.firebaseapp.com",
-  databaseURL: "https://premier-sales-tracker-b7920-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "premier-sales-tracker-b7920",
-  storageBucket: "premier-sales-tracker-b7920.firebasestorage.app",
-  messagingSenderId: "1024596124716",
-  appId: "1:1024596124716:web:c4ff43cb0fe015db1fdd89"
+    authDomain: "premier-sales-tracker-b7920.firebaseapp.com",
+    databaseURL: "https://premier-sales-tracker-b7920-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "premier-sales-tracker-b7920",
+    storageBucket: "premier-sales-tracker-b7920.firebasestorage.app",
+    messagingSenderId: "1024596124716",
+    appId: "1:1024596124716:web:c4ff43cb0fe015db1fdd89"
   };
 
   window._fbDb = null;
@@ -214,22 +212,26 @@
     document.getElementById("app-screen").style.display = "block";
     window.storage = window._fb;
     window._firebaseReady = true;
-    window._startReact && window._startReact();
+    if (window._startReact) {
+      window._startReact();
+    }
   }
 
-  // Auto-connect on load — no setup needed
   try {
     const app = initializeApp(FIREBASE_CONFIG);
     window._fbDb = getFirestore(app);
-    window._firebaseReady = true;
-    launchApp();
+    if (window._reactReadySignal) {
+      launchApp();
+    } else {
+      window._firebaseLoadedSignal = true;
+    }
   } catch(e) {
     document.getElementById("setup-screen").innerHTML =
       `<div style="padding:40px 24px;text-align:center;font-family:sans-serif;">
         <p style="font-size:32px;">⚠️</p>
         <p style="font-size:16px;font-weight:700;">Could not connect to Firebase</p>
         <p style="font-size:13px;color:#6B7280;">${e.message}</p>
-        <p style="font-size:12px;color:#9CA3AF;">Make sure Firestore is enabled in the Firebase console (Build → Firestore Database → Create database → test mode).</p>
+        <p style="font-size:12px;color:#9CA3AF;">Make sure Firestore is enabled in the Firebase console.</p>
       </div>`;
   }
 </script>
@@ -269,7 +271,6 @@
 
     const [histGroup, setHistGroup] = useState("day");
     const [collapsedGroups, setCollapsedGroups] = useState({});
-
     const [catMgmt, setCatMgmt] = useState({ open: false, type: "sale", newName: "" });
 
     const [invForm, setInvForm] = useState({ name: "", sku: "", qty: "", price: "", low: "" });
@@ -278,20 +279,14 @@
     const [stockAdjId, setStockAdjId] = useState(null);
     const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
 
-    const CLEAR_PIN = "2668";
-    const [clearAuth, setClearAuth] = useState({ unlocked: false, pin: "", error: "", attempts: 0, lockedUntil: null });
-    const [clearTarget, setClearTarget] = useState(null);
-    const [clearConfirm, setClearConfirm] = useState(false);
-    const [clearSuccess, setClearSuccess] = useState(null);
-
-    // Real-time listeners
     const unsubscribers = useRef([]);
 
     useEffect(() => {
       let mounted = true;
       const storage = window._fb;
 
-      // Set up real-time subscriptions
+      if (!storage) return;
+
       const unsub1 = storage.subscribe("entries", (raw) => {
         if (!mounted) return;
         setEntries(raw ? JSON.parse(raw) : {});
@@ -307,7 +302,6 @@
 
       unsubscribers.current = [unsub1, unsub2, unsub3];
 
-      // Initial load
       Promise.all([
         storage.get("entries").catch(() => null),
         storage.get("categories").catch(() => null),
@@ -320,9 +314,20 @@
         setLoading(false);
       }).catch(() => { if (mounted) setLoading(false); });
 
-      // Online/offline detection
-      const onOnline = () => { setSyncStatus("connected"); document.querySelector(".sync-dot").classList.remove("offline"); document.getElementById("sync-label").textContent = "Connected — real-time sync on"; };
-      const onOffline = () => { setSyncStatus("offline"); document.querySelector(".sync-dot").classList.add("offline"); document.getElementById("sync-label").textContent = "Offline — changes will sync when reconnected"; };
+      const onOnline = () => { 
+        setSyncStatus("connected"); 
+        const dot = document.querySelector(".sync-dot");
+        if (dot) dot.classList.remove("offline"); 
+        const lbl = document.getElementById("sync-label");
+        if (lbl) lbl.textContent = "Connected — real-time sync on"; 
+      };
+      const onOffline = () => { 
+        setSyncStatus("offline"); 
+        const dot = document.querySelector(".sync-dot");
+        if (dot) dot.classList.add("offline"); 
+        const lbl = document.getElementById("sync-label");
+        if (lbl) lbl.textContent = "Offline — changes will sync when reconnected"; 
+      };
       window.addEventListener("online", onOnline);
       window.addEventListener("offline", onOffline);
 
@@ -366,9 +371,7 @@
       productMap[key].revenue += e.amount;
       productMap[key].count += 1;
     });
-    const topProducts = Object.entries(productMap)
-      .sort((a, b) => b[1].revenue - a[1].revenue)
-      .slice(0, 5);
+    const topProducts = Object.entries(productMap).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 5);
 
     const addEntry = async () => {
       if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) return;
@@ -389,6 +392,13 @@
 
     const deleteEntry = async (id) => {
       const updated = { ...entries, [currentDate]: dayEntries.filter(e => e.id !== id) };
+      await saveEntries(updated);
+      setDeleteId(null);
+    };
+
+    const deleteEntryFromHistory = async (entry) => {
+      const dayArr = (entries[entry.dateStr] || []).filter(e => e.id !== entry.id);
+      const updated = { ...entries, [entry.dateStr]: dayArr };
       await saveEntries(updated);
       setDeleteId(null);
     };
@@ -423,7 +433,7 @@
         await saveInventory(updated);
         setInvEditId(null);
       } else {
-        const item = { id: Date.now().toString(), name: invForm.name.trim(), sku: invForm.sku.trim(), qty: parseInt(invForm.qty), price: parseFloat(invForm.price) || 0, low: parseInt(invForm.low) || 5, history: [] };
+        const item = { id: Date.now().toString(), name: invForm.name.trim(), sku: invForm.sku.trim(), qty: parseInt(invForm.qty), price: parseFloat(invForm.price) || 0, low: parseInt(invForm.low) || 5 };
         await saveInventory([...inventory, item]);
       }
       setInvForm({ name: "", sku: "", qty: "", price: "", low: "" });
@@ -509,50 +519,6 @@
 
     const toggleGroup = (key) => setCollapsedGroups(c => ({ ...c, [key]: !c[key] }));
 
-    const deleteEntryFromHistory = async (entry) => {
-      const dayArr = (entries[entry.dateStr] || []).filter(e => e.id !== entry.id);
-      const updated = { ...entries, [entry.dateStr]: dayArr };
-      await saveEntries(updated);
-      setDeleteId(null);
-    };
-
-    const submitPin = (pin) => {
-      const now = Date.now();
-      setClearAuth(a => {
-        if (a.lockedUntil && now < a.lockedUntil) return a;
-        if (pin === CLEAR_PIN) {
-          return { ...a, unlocked: true, error: "", pin: "", attempts: 0, lockedUntil: null };
-        }
-        const attempts = a.attempts + 1;
-        const lockedUntil = attempts >= 3 ? now + 30000 : null;
-        return { ...a, error: attempts >= 3 ? "Too many attempts. Locked for 30s." : `Incorrect PIN. ${3 - attempts} attempt${3 - attempts !== 1 ? "s" : ""} left.`, pin: "", attempts, lockedUntil };
-      });
-    };
-
-    const lockClear = () => {
-      setClearAuth({ unlocked: false, pin: "", error: "", attempts: 0, lockedUntil: null });
-      setClearTarget(null);
-      setClearConfirm(false);
-      setClearSuccess(null);
-    };
-
-    const executeClear = async () => {
-      let updated = { ...entries };
-      if (clearTarget === "all") {
-        updated = {};
-      } else {
-        Object.keys(updated).forEach(date => {
-          updated[date] = updated[date].filter(e => e.type !== clearTarget);
-        });
-        Object.keys(updated).forEach(date => { if (updated[date].length === 0) delete updated[date]; });
-      }
-      await saveEntries(updated);
-      const label = clearTarget === "all" ? "All entries" : clearTarget === "sale" ? "All sales entries" : "All expense entries";
-      setClearSuccess(label);
-      setClearTarget(null);
-      setClearConfirm(false);
-    };
-
     if (loading) return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 12 }}>
         <div style={{ width: 32, height: 32, border: "2px solid var(--color-border-secondary)", borderTop: `2px solid ${SALE_GREEN}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
@@ -566,7 +532,6 @@
       ["history", "ti-list", "History"],
       ["inventory", "ti-package", "Inventory"],
       ["categories", "ti-tags", "Categories"],
-      ["clear", "ti-shield-lock", "Clear Data"],
     ];
 
     return (
@@ -584,7 +549,7 @@
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {lowStockItems.length > 0 && (
-              <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E", display: "flex", alignItems: "center", gap: 4 }}>
+              <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E" }}>
                 <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />{lowStockItems.length} low
               </button>
             )}
@@ -600,18 +565,20 @@
         {/* Nav */}
         <div style={{ display: "flex", borderBottom: "0.5px solid var(--color-border-tertiary)", margin: "12px 0 0", padding: "0 8px", overflowX: "auto" }}>
           {navItems.map(([v, icon, label]) => (
-            <button key={v} onClick={() => { setView(v); if (v !== "clear") lockClear(); }} className={`tab-btn${view === v ? " active" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
+            <button key={v} onClick={() => { setView(v); }} className={`tab-btn${view === v ? " active" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
               <i className={`ti ${icon}`} style={{ fontSize: 15, display: "block", margin: "0 auto 2px" }} />
               {label}
             </button>
           ))}
         </div>
 
-        {/* ── DASHBOARD ── */}
+        {/* DASHBOARD VIEW */}
         {view === "dashboard" && (
           <div className="fade-in" style={{ padding: "16px" }}>
             <div style={{ background: net >= 0 ? "var(--color-background-success)" : "var(--color-background-danger)", borderRadius: "var(--border-radius-lg)", padding: "20px", marginBottom: 12, textAlign: "center" }}>
-              <p style={{ fontSize: 11, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Net {net >= 0 ? "Profit" : "Loss"} — {displayDate(currentDate)}</p>
+              <p style={{ fontSize: 11, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>
+                Net {net >= 0 ? "Profit" : "Loss"}
+              </p>
               <p style={{ fontSize: 32, fontWeight: 600, margin: 0, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)" }}>{fmt(Math.abs(net))}</p>
             </div>
 
@@ -633,533 +600,244 @@
                 <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", margin: "2px 0 0" }}>{dayEntries.filter(e => e.type === "expense").length} entries</p>
               </div>
             </div>
-
-            {topProducts.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <p className="section-label">Top Revenue Sources (All Time)</p>
-                <div style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
-                  {topProducts.map(([name, data], i) => {
-                    const pct = totalRevenue > 0 ? ((data.revenue / totalRevenue) * 100).toFixed(1) : 0;
-                    return (
-                      <div key={name} style={{ padding: "12px 14px", borderTop: i > 0 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 20, height: 20, borderRadius: "50%", background: SALE_GREEN, color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
-                            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{name}</span>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: SALE_GREEN }}>{fmt(data.revenue)}</span>
-                            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>{pct}%</span>
-                          </div>
-                        </div>
-                        <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
-                        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--color-text-tertiary)" }}>{data.count} transaction{data.count !== 1 ? "s" : ""}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", margin: "6px 0 0 2px" }}>Total all-time revenue: {fmt(totalRevenue)}</p>
-              </div>
-            )}
-
-            {dayEntries.length > 0 && (
+            
+            {dayEntries.length > 0 ? (
               <div>
-                <p className="section-label">Recent — {displayDate(currentDate)}</p>
-                <div style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
-                  {dayEntries.slice(0, 5).map((e, i) => (
-                    <div key={e.id} className="entry-row" style={{ display: "flex", alignItems: "center", padding: "11px 14px", borderTop: i > 0 ? "0.5px solid var(--color-border-tertiary)" : "none", transition: "background 0.1s" }}>
-                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: e.type === "sale" ? "#E1F5EE" : "#FAECE7", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 10, flexShrink: 0 }}>
-                        <i className={`ti ${e.type === "sale" ? "ti-arrow-up" : "ti-arrow-down"}`} style={{ fontSize: 14, color: e.type === "sale" ? SALE_GREEN : EXP_RED }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.category}</p>
-                        <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-tertiary)" }}>{e.note || e.time}</p>
-                      </div>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: e.type === "sale" ? SALE_GREEN : EXP_RED, marginLeft: 8 }}>{e.type === "sale" ? "+" : "-"}{fmt(e.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-                {dayEntries.length > 5 && (
-                  <button onClick={() => setView("history")} style={{ width: "100%", marginTop: 8, padding: "10px", background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
-                    View all {dayEntries.length} entries
-                  </button>
-                )}
-              </div>
-            )}
-
-            {dayEntries.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-tertiary)" }}>
-                <i className="ti ti-receipt-off" style={{ fontSize: 40, display: "block", marginBottom: 10 }} />
-                <p style={{ margin: 0, fontSize: 14 }}>No entries for {displayDate(currentDate).toLowerCase()}.<br />Tap <strong>Add Entry</strong> to get started.</p>
-              </div>
-            )}
-
-            <button onClick={() => setView("add")} className="btn-tap" style={{ position: "fixed", bottom: "calc(24px + env(safe-area-inset-bottom, 0px))", right: 20, width: 52, height: 52, borderRadius: "50%", background: SALE_GREEN, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(15,110,86,0.4)", zIndex: 10 }} aria-label="Add entry">
-              <i className="ti ti-plus" style={{ fontSize: 22, color: "#fff" }} />
-            </button>
-          </div>
-        )}
-
-        {/* ── ADD ENTRY ── */}
-        {view === "add" && (
-          <div className="fade-in" style={{ padding: "20px 16px" }}>
-            <div style={{ display: "flex", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", overflow: "hidden", marginBottom: 20 }}>
-              <button onClick={() => setForm(f => ({ ...f, type: "sale", category: "" }))} style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: form.type === "sale" ? SALE_GREEN : "transparent", color: form.type === "sale" ? "#fff" : "var(--color-text-secondary)" }}>
-                <i className="ti ti-arrow-up" style={{ marginRight: 6 }} />Sale / Income
-              </button>
-              <button onClick={() => setForm(f => ({ ...f, type: "expense", category: "" }))} style={{ flex: 1, padding: "12px", border: "none", borderLeft: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: form.type === "expense" ? EXP_RED : "transparent", color: form.type === "expense" ? "#fff" : "var(--color-text-secondary)" }}>
-                <i className="ti ti-arrow-down" style={{ marginRight: 6 }} />Expense
-              </button>
-            </div>
-
-            <label className="section-label" style={{ display: "block", marginBottom: 4 }}>Amount (KES)</label>
-            <input type="number" placeholder="0" min="0" step="any" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} style={{ marginBottom: 14, fontSize: 24, fontWeight: 600, textAlign: "center" }} />
-
-            <label className="section-label" style={{ display: "block", marginBottom: 4 }}>Category</label>
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ marginBottom: 14 }}>
-              <option value="">Select category</option>
-              {(categories[form.type] || []).map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-
-            <label className="section-label" style={{ display: "block", marginBottom: 4 }}>Note (optional)</label>
-            <input type="text" placeholder="Add a note…" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} style={{ marginBottom: 24 }} />
-
-            <button onClick={addEntry} className="btn-tap" disabled={!form.amount || isNaN(form.amount) || Number(form.amount) <= 0} style={{ width: "100%", padding: "14px", border: "none", borderRadius: "var(--border-radius-md)", cursor: "pointer", fontSize: 15, fontWeight: 600, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: !form.amount || isNaN(form.amount) || Number(form.amount) <= 0 ? "var(--color-background-secondary)" : form.type === "sale" ? SALE_GREEN : EXP_RED, color: !form.amount || isNaN(form.amount) || Number(form.amount) <= 0 ? "var(--color-text-tertiary)" : "#fff" }}>
-              Save {form.type === "sale" ? "Sale" : "Expense"}
-            </button>
-          </div>
-        )}
-
-        {/* ── HISTORY ── */}
-        {view === "history" && (() => {
-          const historyGroups = buildHistoryGroups();
-          const totalEntries = Object.values(entries).flat().length;
-          const grandSales = Object.values(entries).flat().filter(e => e.type === "sale").reduce((s, e) => s + e.amount, 0);
-          const grandExp = Object.values(entries).flat().filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0);
-          const grandNet = grandSales - grandExp;
-
-          return (
-            <div className="fade-in" style={{ padding: "16px" }}>
-              <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-                {[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([mode, label]) => (
-                  <button key={mode} onClick={() => { setHistGroup(mode); setCollapsedGroups({}); }} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${histGroup === mode ? SALE_GREEN : "var(--color-border-secondary)"}`, borderRadius: "var(--border-radius-md)", background: histGroup === mode ? "#E1F5EE" : "transparent", color: histGroup === mode ? SALE_GREEN : "var(--color-text-secondary)", cursor: "pointer", fontSize: 12, fontWeight: histGroup === mode ? 700 : 500, fontFamily: "var(--font-sans)", transition: "all 0.15s" }}>
-                    {label}
-                  </button>
+                <p className="section-label">Entries — Today</p>
+                {dayEntries.map(e => (
+                  <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--color-border-secondary)" }}>
+                    <span>{e.category} <small style={{color: 'gray'}}>({e.time})</small></span>
+                    <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: "bold" }}>
+                      {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
+                    </span>
+                  </div>
                 ))}
               </div>
+            ) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No entries recorded for this date.</p>}
+          </div>
+        )}
 
-              {totalEntries === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-tertiary)" }}>
-                  <i className="ti ti-calendar-off" style={{ fontSize: 40, display: "block", marginBottom: 10 }} />
-                  <p style={{ margin: 0, fontSize: 14 }}>No entries recorded yet.<br />Add your first entry to see history.</p>
-                </div>
-              ) : (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-                    <div className="card" style={{ textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: SALE_GREEN }}>{fmt(grandSales)}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Total Sales</p>
-                    </div>
-                    <div className="card" style={{ textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: EXP_RED }}>{fmt(grandExp)}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Total Expenses</p>
-                    </div>
-                    <div className="card" style={{ textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: grandNet >= 0 ? SALE_GREEN : EXP_RED }}>{fmt(Math.abs(grandNet))}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Net {grandNet >= 0 ? "Profit" : "Loss"}</p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {historyGroups.map(group => {
-                      const isCollapsed = !!collapsedGroups[group.key];
-                      const gNet = group.sales - group.expenses;
-                      return (
-                        <div key={group.key} style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
-                          <button onClick={() => toggleGroup(group.key)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", border: "none", background: "var(--color-background-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <i className={`ti ${isCollapsed ? "ti-chevron-right" : "ti-chevron-down"}`} style={{ fontSize: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
-                              <div>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>{group.label}</span>
-                                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>{group.entries.length} entr{group.entries.length !== 1 ? "ies" : "y"}</span>
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: 12, color: SALE_GREEN, fontWeight: 600 }}>+{fmt(group.sales)}</span>
-                              <span style={{ fontSize: 12, color: EXP_RED, fontWeight: 600 }}>-{fmt(group.expenses)}</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: gNet >= 0 ? SALE_GREEN : EXP_RED, minWidth: 60, textAlign: "right" }}>{gNet >= 0 ? "+" : ""}{fmt(gNet)}</span>
-                            </div>
-                          </button>
-
-                          {!isCollapsed && group.entries.map((e, i) => (
-                            <div key={e.id}>
-                              <div className="entry-row" style={{ display: "flex", alignItems: "center", padding: "11px 14px", borderTop: "0.5px solid var(--color-border-tertiary)", transition: "background 0.1s" }}>
-                                <div style={{ width: 30, height: 30, borderRadius: "50%", background: e.type === "sale" ? "#E1F5EE" : "#FAECE7", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 10, flexShrink: 0 }}>
-                                  <i className={`ti ${e.type === "sale" ? "ti-arrow-up" : "ti-arrow-down"}`} style={{ fontSize: 13, color: e.type === "sale" ? SALE_GREEN : EXP_RED }} />
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.category}</p>
-                                  <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-tertiary)" }}>
-                                    {histGroup !== "day" && <span>{displayDate(e.dateStr)} · </span>}
-                                    {e.note ? `${e.note} · ` : ""}{e.time}
-                                  </p>
-                                </div>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: e.type === "sale" ? SALE_GREEN : EXP_RED, marginLeft: 8, flexShrink: 0 }}>{e.type === "sale" ? "+" : "-"}{fmt(e.amount)}</span>
-                                <button onClick={() => setDeleteId(deleteId === e.id ? null : e.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: "4px 4px 4px 8px", color: "var(--color-text-tertiary)", flexShrink: 0 }}>
-                                  <i className="ti ti-dots-vertical" style={{ fontSize: 15 }} />
-                                </button>
-                              </div>
-                              {deleteId === e.id && (
-                                <div style={{ background: "var(--color-background-danger)", padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "0.5px solid var(--color-border-danger)" }}>
-                                  <span style={{ fontSize: 13, color: "var(--color-text-danger)" }}>Delete this entry?</span>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button onClick={() => setDeleteId(null)} style={{ padding: "6px 12px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>Cancel</button>
-                                    <button onClick={() => deleteEntryFromHistory(e)} style={{ padding: "6px 12px", border: "none", borderRadius: "var(--border-radius-md)", background: "var(--color-background-danger)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-danger)", fontWeight: 500 }}>
-                                      <i className="ti ti-trash" style={{ marginRight: 4 }} />Delete
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* ── INVENTORY ── */}
-        {view === "inventory" && (
+        {/* ADD ENTRY VIEW */}
+        {view === "add" && (
           <div className="fade-in" style={{ padding: "16px" }}>
-            <div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 16 }}>
-              <p className="section-label">{invEditId ? "Edit Product" : "Add Product / Item"}</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                <div style={{ gridColumn: "1/-1" }}>
-                  <input placeholder="Product name *" value={invForm.name} onChange={e => setInvForm(f => ({ ...f, name: e.target.value }))} />
-                </div>
-                <input placeholder="SKU / Code" value={invForm.sku} onChange={e => setInvForm(f => ({ ...f, sku: e.target.value }))} />
-                <input type="number" placeholder="Qty *" min="0" value={invForm.qty} onChange={e => setInvForm(f => ({ ...f, qty: e.target.value }))} />
-                <input type="number" placeholder="Price (KES)" min="0" value={invForm.price} onChange={e => setInvForm(f => ({ ...f, price: e.target.value }))} />
-                <input type="number" placeholder="Low stock alert" min="0" value={invForm.low} onChange={e => setInvForm(f => ({ ...f, low: e.target.value }))} />
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={addOrUpdateInventory} className="btn-tap" disabled={!invForm.name.trim() || !invForm.qty} style={{ flex: 1, padding: "10px", border: "none", borderRadius: "var(--border-radius-md)", background: !invForm.name.trim() || !invForm.qty ? "var(--color-border-tertiary)" : SALE_GREEN, color: !invForm.name.trim() || !invForm.qty ? "var(--color-text-tertiary)" : "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)" }}>
-                  {invEditId ? "Update Item" : "Add Item"}
+            <p className="section-label">Add Transaction Record</p>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <button onClick={() => setForm({ ...form, type: "sale" })} style={{ flex: 1, padding: 12, background: form.type === "sale" ? SALE_GREEN : "#eee", color: form.type === "sale" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
+                + Sale
+              </button>
+              <button onClick={() => setForm({ ...form, type: "expense" })} style={{ flex: 1, padding: 12, background: form.type === "expense" ? EXP_RED : "#eee", color: form.type === "expense" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
+                - Expense
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <input type="number" placeholder="Amount (KES)" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+                <option value="">Select Category</option>
+                {categories[form.type].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <input type="text" placeholder="Add optional description note..." value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} />
+              <button onClick={addEntry} style={{ padding: 14, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", marginTop: 8 }}>Save Entry</button>
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY VIEW */}
+        {view === "history" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <p className="section-label">Transaction History</p>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+              {["day", "week", "month", "year"].map(m => (
+                <button key={m} onClick={() => { setHistGroup(m); setCollapsedGroups({}); }} style={{ padding: "6px 12px", border: "1px solid", borderColor: histGroup === m ? SALE_GREEN : "var(--color-border-secondary)", background: histGroup === m ? SALE_GREEN : "transparent", color: histGroup === m ? "white" : "var(--color-text-primary)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap" }}>
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
                 </button>
-                {invEditId && (
-                  <button onClick={() => { setInvEditId(null); setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); }} style={{ padding: "10px 14px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>Cancel</button>
+              ))}
+            </div>
+            {buildHistoryGroups().length > 0 ? buildHistoryGroups().map(group => (
+              <div key={group.key} style={{ marginBottom: 12 }}>
+                <button onClick={() => toggleGroup(group.key)} style={{ width: "100%", padding: "10px 12px", background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ textAlign: "left" }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{group.label}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      <span style={{ color: SALE_GREEN }}>+{fmt(group.sales)}</span>
+                      {" · "}
+                      <span style={{ color: EXP_RED }}>-{fmt(group.expenses)}</span>
+                    </p>
+                  </div>
+                  <i className={`ti ti-chevron-${collapsedGroups[group.key] ? "right" : "down"}`} style={{ fontSize: 18 }} />
+                </button>
+                {!collapsedGroups[group.key] && (
+                  <div style={{ marginTop: 8 }}>
+                    {group.entries.map(e => (
+                      <div key={e.id} style={{ padding: "8px 12px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{e.category}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>{e.time}</p>
+                        </div>
+                        <button onClick={() => setDeleteId(deleteId === e.id ? null : e.id)} style={{ border: "none", background: "none", cursor: "pointer", color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: 600 }}>
+                          {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+            )) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No transaction history recorded.</p>}
+          </div>
+        )}
+
+        {/* INVENTORY VIEW */}
+        {view === "inventory" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <p className="section-label">Inventory</p>
+              <button onClick={() => { setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); setInvEditId(null); }} style={{ background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                + Add Item
+              </button>
             </div>
 
-            {inventory.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-                <div className="card" style={{ textAlign: "center" }}>
-                  <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)" }}>{inventory.length}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Products</p>
+            {invEditId ? (
+              <div style={{ background: "var(--color-background-secondary)", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <input type="text" placeholder="Item name" value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} />
+                  <input type="text" placeholder="SKU (optional)" value={invForm.sku} onChange={e => setInvForm({ ...invForm, sku: e.target.value })} />
+                  <input type="number" placeholder="Quantity" value={invForm.qty} onChange={e => setInvForm({ ...invForm, qty: e.target.value })} />
+                  <input type="number" placeholder="Unit price" value={invForm.price} onChange={e => setInvForm({ ...invForm, price: e.target.value })} />
+                  <input type="number" placeholder="Low stock level" value={invForm.low} onChange={e => setInvForm({ ...invForm, low: e.target.value })} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={addOrUpdateInventory} style={{ flex: 1, padding: 10, background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                      Update
+                    </button>
+                    <button onClick={() => { setInvEditId(null); }} style={{ flex: 1, padding: 10, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-                <div className="card" style={{ textAlign: "center" }}>
-                  <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: lowStockItems.length > 0 ? "#92400E" : "var(--color-text-primary)" }}>{lowStockItems.length}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Low Stock</p>
+              </div>
+            ) : null}
+
+            {inventory.length > 0 ? inventory.map(item => (
+              <div key={item.id} style={{ background: "var(--color-background-secondary)", padding: 12, borderRadius: 8, marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 8 }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{item.name}</p>
+                    {item.sku && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>SKU: {item.sku}</p>}
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => startEdit(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-info)", fontSize: 14 }}>
+                      <i className="ti ti-edit" />
+                    </button>
+                    <button onClick={() => setInvDeleteId(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: EXP_RED, fontSize: 14 }}>
+                      <i className="ti ti-trash" />
+                    </button>
+                  </div>
                 </div>
-                <div className="card" style={{ textAlign: "center" }}>
-                  <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)" }}>{fmt(inventory.reduce((s, i) => s + (i.qty * (i.price || 0)), 0))}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Stock Value</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 12, marginBottom: 10 }}>
+                  <div>
+                    <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>Qty</p>
+                    <p style={{ margin: "2px 0 0", fontWeight: 600, fontSize: 16, color: item.qty <= item.low ? EXP_RED : SALE_GREEN }}>
+                      {item.qty}
+                      {item.qty <= item.low && <span className="low-badge" style={{ marginLeft: 6 }}>Low</span>}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>Unit Price</p>
+                    <p style={{ margin: "2px 0 0", fontWeight: 600 }}>{fmt(item.price)}</p>
+                  </div>
+                </div>
+                <button onClick={() => setStockAdjId(item.id)} style={{ width: "100%", padding: 8, background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)" }}>
+                  Adjust Stock
+                </button>
+              </div>
+            )) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No items in inventory.</p>}
+
+            {stockAdjId && (
+              <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 1000 }}>
+                <div style={{ width: "100%", background: "white", borderRadius: "16px 16px 0 0", padding: 20, maxWidth: 460, margin: "0 auto" }}>
+                  <p className="section-label">Adjust Stock</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+                    <input type="number" placeholder="Quantity change (+ or -)" value={stockAdj.delta} onChange={e => setStockAdj({ ...stockAdj, delta: e.target.value })} />
+                    <input type="text" placeholder="Note (optional)" value={stockAdj.note} onChange={e => setStockAdj({ ...stockAdj, note: e.target.value })} />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={applyStockAdj} style={{ flex: 1, padding: 12, background: SALE_GREEN, color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>
+                        Apply
+                      </button>
+                      <button onClick={() => setStockAdjId(null)} style={{ flex: 1, padding: 12, background: "#ddd", color: "#333", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {inventory.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-tertiary)" }}>
-                <i className="ti ti-package-off" style={{ fontSize: 40, display: "block", marginBottom: 10 }} />
-                <p style={{ margin: 0, fontSize: 14 }}>No inventory items yet.<br />Add your first product above.</p>
-              </div>
-            ) : (
-              <div style={{ borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden", background: "var(--color-background-primary)" }}>
-                {inventory.map((item, i) => {
-                  const isLow = item.qty <= (item.low || 5);
-                  const isOut = item.qty === 0;
-                  return (
-                    <div key={item.id}>
-                      <div style={{ padding: "12px 14px", borderTop: i > 0 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{item.name}</span>
-                              {isOut ? <span className="out-badge">Out of stock</span> : isLow ? <span className="low-badge">Low stock</span> : null}
-                            </div>
-                            {item.sku && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-tertiary)" }}>SKU: {item.sku}</p>}
-                            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
-                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Qty: <strong style={{ color: isOut ? "#991B1B" : isLow ? "#92400E" : SALE_GREEN }}>{item.qty}</strong></span>
-                              {item.price > 0 && <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Price: {fmt(item.price)}</span>}
-                              {item.price > 0 && <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Value: {fmt(item.qty * item.price)}</span>}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-                            <button onClick={() => setStockAdjId(stockAdjId === item.id ? null : item.id)} style={{ border: "0.5px solid var(--color-border-secondary)", background: "none", borderRadius: "var(--border-radius-md)", padding: "5px 8px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: SALE_GREEN, fontFamily: "var(--font-sans)" }}>
-                              <i className="ti ti-adjustments-horizontal" style={{ fontSize: 12 }} /> Adjust
-                            </button>
-                            <button onClick={() => startEdit(item)} style={{ border: "0.5px solid var(--color-border-secondary)", background: "none", borderRadius: "var(--border-radius-md)", padding: "5px 8px", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
-                              <i className="ti ti-pencil" style={{ fontSize: 12 }} />
-                            </button>
-                            <button onClick={() => setInvDeleteId(invDeleteId === item.id ? null : item.id)} style={{ border: "0.5px solid var(--color-border-danger)", background: "none", borderRadius: "var(--border-radius-md)", padding: "5px 8px", cursor: "pointer", fontSize: 11, color: "var(--color-text-danger)", fontFamily: "var(--font-sans)" }}>
-                              <i className="ti ti-trash" style={{ fontSize: 12 }} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {stockAdjId === item.id && (
-                          <div style={{ marginTop: 10, padding: 10, background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)" }}>
-                            <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Adjust Stock (use − for removal)</p>
-                            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                              <input type="number" placeholder="e.g. +10 or -3" value={stockAdj.delta} onChange={e => setStockAdj(s => ({ ...s, delta: e.target.value }))} style={{ flex: 1 }} />
-                              <input type="text" placeholder="Reason (optional)" value={stockAdj.note} onChange={e => setStockAdj(s => ({ ...s, note: e.target.value }))} style={{ flex: 2 }} />
-                            </div>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={applyStockAdj} style={{ flex: 1, padding: "8px", border: "none", borderRadius: "var(--border-radius-md)", background: SALE_GREEN, color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)" }}>Apply</button>
-                              <button onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }} style={{ padding: "8px 12px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>Cancel</button>
-                            </div>
-                            {item.history && item.history.length > 0 && (
-                              <div style={{ marginTop: 8 }}>
-                                <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Recent Adjustments</p>
-                                {item.history.slice(0, 3).map((h, hi) => (
-                                  <div key={hi} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 0" }}>
-                                    <span>{h.date} — {h.note || "adjustment"}</span>
-                                    <span style={{ fontWeight: 600, color: h.delta > 0 ? SALE_GREEN : EXP_RED }}>{h.delta > 0 ? "+" : ""}{h.delta} → {h.qty}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {invDeleteId === item.id && (
-                          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-background-danger)", borderRadius: "var(--border-radius-md)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 13, color: "var(--color-text-danger)" }}>Remove {item.name}?</span>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={() => setInvDeleteId(null)} style={{ padding: "5px 10px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 12, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>No</button>
-                              <button onClick={() => deleteInventory(item.id)} style={{ padding: "5px 10px", border: "none", borderRadius: "var(--border-radius-md)", background: "var(--color-background-danger)", cursor: "pointer", fontSize: 12, fontFamily: "var(--font-sans)", color: "var(--color-text-danger)", fontWeight: 600 }}>Remove</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+            {invDeleteId && (
+              <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001 }}>
+                <div style={{ background: "white", padding: 24, borderRadius: 12, maxWidth: 300 }}>
+                  <p style={{ fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Delete item?</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => deleteInventory(invDeleteId)} style={{ flex: 1, padding: 10, background: EXP_RED, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                      Delete
+                    </button>
+                    <button onClick={() => setInvDeleteId(null)} style={{ flex: 1, padding: 10, background: "#ddd", color: "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ── CATEGORIES ── */}
+        {/* CATEGORIES VIEW */}
         {view === "categories" && (
           <div className="fade-in" style={{ padding: "16px" }}>
-            <div style={{ display: "flex", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", overflow: "hidden", marginBottom: 20 }}>
-              <button onClick={() => setCatMgmt(c => ({ ...c, type: "sale" }))} style={{ flex: 1, padding: "10px", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: catMgmt.type === "sale" ? SALE_GREEN : "transparent", color: catMgmt.type === "sale" ? "#fff" : "var(--color-text-secondary)" }}>
-                <i className="ti ti-arrow-up" style={{ marginRight: 6 }} />Sale / Income
+            <p className="section-label">Manage Categories</p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "sale" ? SALE_GREEN : "#eee", color: catMgmt.type === "sale" ? "white" : "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                Sales
               </button>
-              <button onClick={() => setCatMgmt(c => ({ ...c, type: "expense" }))} style={{ flex: 1, padding: "10px", border: "none", borderLeft: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)", transition: "all 0.15s", background: catMgmt.type === "expense" ? EXP_RED : "transparent", color: catMgmt.type === "expense" ? "#fff" : "var(--color-text-secondary)" }}>
-                <i className="ti ti-arrow-down" style={{ marginRight: 6 }} />Expense
+              <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 10, background: catMgmt.type === "expense" ? EXP_RED : "#eee", color: catMgmt.type === "expense" ? "white" : "#333", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}>
+                Expenses
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <input
-                placeholder={`New ${catMgmt.type === "sale" ? "income" : "expense"} category…`}
-                value={catMgmt.newName}
-                onChange={e => setCatMgmt(c => ({ ...c, newName: e.target.value }))}
-                onKeyDown={e => { if (e.key === "Enter") addCategory(); }}
-                style={{ flex: 1 }}
-              />
-              <button onClick={addCategory} disabled={!catMgmt.newName.trim()} style={{ padding: "10px 16px", border: "none", borderRadius: "var(--border-radius-md)", background: !catMgmt.newName.trim() ? "var(--color-border-tertiary)" : catMgmt.type === "sale" ? SALE_GREEN : EXP_RED, color: !catMgmt.newName.trim() ? "var(--color-text-tertiary)" : "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)", flexShrink: 0 }}>
+            <div style={{ background: "var(--color-background-secondary)", padding: 12, borderRadius: 8, marginBottom: 16, display: "flex", gap: 8 }}>
+              <input type="text" placeholder="New category name" value={catMgmt.newName} onChange={e => setCatMgmt({ ...catMgmt, newName: e.target.value })} style={{ flex: 1 }} />
+              <button onClick={addCategory} style={{ padding: 10, background: SALE_GREEN, color: "white", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
                 Add
               </button>
             </div>
 
-            <p className="section-label">{catMgmt.type === "sale" ? "Income" : "Expense"} Categories ({(categories[catMgmt.type] || []).length})</p>
-            {(categories[catMgmt.type] || []).length === 0 ? (
-              <div style={{ textAlign: "center", padding: "30px 20px", color: "var(--color-text-tertiary)", borderRadius: "var(--border-radius-lg)", border: "0.5px dashed var(--color-border-secondary)" }}>
-                <i className="ti ti-tag-off" style={{ fontSize: 32, display: "block", marginBottom: 8 }} />
-                <p style={{ margin: 0, fontSize: 13 }}>No categories yet. Add one above.</p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {(categories[catMgmt.type] || []).map(cat => (
-                  <span key={cat} className="pill-tag">
-                    {cat}
-                    <button onClick={() => removeCategory(catMgmt.type, cat)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "var(--color-text-tertiary)", marginLeft: 2 }} aria-label={`Remove ${cat}`}>
-                      <i className="ti ti-x" style={{ fontSize: 11 }} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── CLEAR DATA ── */}
-        {view === "clear" && (() => {
-          const now = Date.now();
-          const isLocked = clearAuth.lockedUntil && now < clearAuth.lockedUntil;
-          const totalSales = Object.values(entries).flat().filter(e => e.type === "sale").length;
-          const totalExpenses = Object.values(entries).flat().filter(e => e.type === "expense").length;
-          const totalAll = totalSales + totalExpenses;
-
-          const pinDots = (
-            <div style={{ display: "flex", gap: 14, justifyContent: "center", margin: "20px 0 8px" }}>
-              {[0,1,2,3].map(i => (
-                <div key={i} style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${clearAuth.pin.length > i ? EXP_RED : "var(--color-border-secondary)"}`, background: clearAuth.pin.length > i ? EXP_RED : "transparent", transition: "all 0.15s" }} />
+            <div>
+              {categories[catMgmt.type].map(cat => (
+                <div key={cat} style={{ padding: "10px 12px", background: "var(--color-background-secondary)", borderRadius: 6, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>{cat}</span>
+                  <button onClick={() => removeCategory(catMgmt.type, cat)} style={{ background: "none", border: "none", cursor: "pointer", color: EXP_RED }}>
+                    <i className="ti ti-x" />
+                  </button>
+                </div>
               ))}
             </div>
-          );
-
-          const pinPad = (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 64px)", gap: 10, justifyContent: "center", marginTop: 16 }}>
-              {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k, idx) => {
-                if (k === "") return <div key={idx} />;
-                const isBack = k === "⌫";
-                return (
-                  <button key={k} className={`pin-key${isBack ? " danger" : ""}`} disabled={isLocked}
-                    onClick={() => {
-                      if (isBack) { setClearAuth(a => ({ ...a, pin: a.pin.slice(0, -1), error: "" })); return; }
-                      if (clearAuth.pin.length >= 4) return;
-                      const next = clearAuth.pin + k;
-                      setClearAuth(a => ({ ...a, pin: next, error: "" }));
-                      if (next.length === 4) setTimeout(() => submitPin(next), 80);
-                    }}>
-                    {k}
-                  </button>
-                );
-              })}
-            </div>
-          );
-
-          return (
-            <div className="fade-in" style={{ padding: "16px" }}>
-              {!clearAuth.unlocked ? (
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", margin: "12px auto 0" }}>
-                    <i className="ti ti-shield-lock" style={{ fontSize: 24, color: EXP_RED }} />
-                  </div>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", margin: "12px 0 4px" }}>Protected Area</p>
-                  <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>Enter your 4-digit PIN to manage data clearing.</p>
-                  {pinDots}
-                  {clearAuth.error && (
-                    <p className="shake" style={{ fontSize: 12, color: EXP_RED, margin: "4px 0 0", fontWeight: 600 }}>{clearAuth.error}</p>
-                  )}
-                  {pinPad}
-                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 20 }}>
-                    <i className="ti ti-lock" style={{ marginRight: 4 }} />This section requires authorisation.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#E1F5EE", borderRadius: "var(--border-radius-md)", marginBottom: 20 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <i className="ti ti-shield-check" style={{ fontSize: 16, color: SALE_GREEN }} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: SALE_GREEN }}>Unlocked</span>
-                    </div>
-                    <button onClick={lockClear} style={{ border: "0.5px solid rgba(15,110,86,0.3)", borderRadius: "var(--border-radius-md)", background: "none", padding: "4px 10px", cursor: "pointer", fontSize: 12, color: SALE_GREEN, fontFamily: "var(--font-sans)", fontWeight: 600 }}>
-                      <i className="ti ti-lock" style={{ marginRight: 4 }} />Lock
-                    </button>
-                  </div>
-
-                  {clearSuccess && (
-                    <div style={{ padding: "12px 14px", background: "#E1F5EE", borderRadius: "var(--border-radius-md)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                      <i className="ti ti-circle-check" style={{ fontSize: 16, color: SALE_GREEN }} />
-                      <span style={{ fontSize: 13, color: SALE_GREEN, fontWeight: 600 }}>{clearSuccess} cleared successfully.</span>
-                      <button onClick={() => setClearSuccess(null)} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", color: SALE_GREEN, padding: 0 }}><i className="ti ti-x" style={{ fontSize: 13 }} /></button>
-                    </div>
-                  )}
-
-                  <p className="section-label">Current Data</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
-                    <div className="card" style={{ textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: SALE_GREEN }}>{totalSales}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Sales</p>
-                    </div>
-                    <div className="card" style={{ textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: EXP_RED }}>{totalExpenses}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Expenses</p>
-                    </div>
-                    <div className="card" style={{ textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>{totalAll}</p>
-                      <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--color-text-secondary)" }}>Total</p>
-                    </div>
-                  </div>
-
-                  <p className="section-label">Clear Options</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-                    {[
-                      { key: "sale", label: "Clear Sales / Income Entries", sub: `Remove all ${totalSales} sales records`, icon: "ti-arrow-up-circle", color: SALE_GREEN, bg: "#E1F5EE", count: totalSales },
-                      { key: "expense", label: "Clear Expense Entries", sub: `Remove all ${totalExpenses} expense records`, icon: "ti-arrow-down-circle", color: EXP_RED, bg: "#FAECE7", count: totalExpenses },
-                      { key: "all", label: "Clear All Entries", sub: `Remove all ${totalAll} records (sales + expenses)`, icon: "ti-trash", color: "#7C3AED", bg: "#EDE9FE", count: totalAll },
-                    ].map(opt => (
-                      <button key={opt.key} onClick={() => { if (opt.count > 0) { setClearTarget(opt.key); setClearConfirm(true); } }} disabled={opt.count === 0}
-                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px", borderRadius: "var(--border-radius-lg)", border: `1px solid ${opt.count === 0 ? "var(--color-border-tertiary)" : "var(--color-border-secondary)"}`, background: opt.count === 0 ? "transparent" : "var(--color-background-primary)", cursor: opt.count === 0 ? "not-allowed" : "pointer", textAlign: "left", fontFamily: "var(--font-sans)", opacity: opt.count === 0 ? 0.5 : 1, transition: "all 0.15s" }}>
-                        <div style={{ width: 38, height: 38, borderRadius: "50%", background: opt.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <i className={`ti ${opt.icon}`} style={{ fontSize: 18, color: opt.color }} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{opt.label}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>{opt.sub}</p>
-                        </div>
-                        {opt.count > 0 && <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div style={{ padding: "12px 14px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                    <i className="ti ti-alert-triangle" style={{ marginRight: 6, color: "#92400E" }} />
-                    Clearing entries is permanent and cannot be undone. Changes sync to all devices.
-                  </div>
-
-                  {clearConfirm && clearTarget && (() => {
-                    const opt = { sale: { label: "sales / income", color: SALE_GREEN }, expense: { label: "expense", color: EXP_RED }, all: { label: "all", color: "#7C3AED" } }[clearTarget];
-                    const count = clearTarget === "all" ? totalAll : clearTarget === "sale" ? totalSales : totalExpenses;
-                    return (
-                      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-                        <div className="fade-in" style={{ background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg) var(--border-radius-lg) 0 0", padding: "24px 20px 36px", width: "100%", maxWidth: 460, boxSizing: "border-box" }}>
-                          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-                            <i className="ti ti-alert-triangle" style={{ fontSize: 22, color: EXP_RED }} />
-                          </div>
-                          <p style={{ textAlign: "center", fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", margin: "0 0 8px" }}>Confirm Clear</p>
-                          <p style={{ textAlign: "center", fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 24px", lineHeight: 1.5 }}>
-                            You are about to permanently delete <strong>{count} {opt.label} entr{count !== 1 ? "ies" : "y"}</strong> across all devices.<br />This cannot be undone.
-                          </p>
-                          <div style={{ display: "flex", gap: 10 }}>
-                            <button onClick={() => { setClearConfirm(false); setClearTarget(null); }} style={{ flex: 1, padding: "13px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: "var(--font-sans)", color: "var(--color-text-secondary)" }}>
-                              Cancel
-                            </button>
-                            <button onClick={executeClear} style={{ flex: 1, padding: "13px", border: "none", borderRadius: "var(--border-radius-md)", background: EXP_RED, color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: "var(--font-sans)" }}>
-                              <i className="ti ti-trash" style={{ marginRight: 6 }} />Yes, Clear
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+          </div>
+        )}
       </div>
     );
   }
 
-  // Start React when Firebase is ready
-  window._startReact = function() {
-    ReactDOM.createRoot(document.getElementById('root')).render(<SalesTracker />);
+  const container = document.getElementById("root");
+  const root = ReactDOM.createRoot(container);
+
+  window._startReact = () => {
+    root.render(<SalesTracker />);
   };
 
-  // If Firebase was already connected (auto-connect path), start now
-  if (window._firebaseReady) {
+  if (window._firebaseLoadedSignal) {
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "block";
+    window.storage = window._fb;
     window._startReact();
+  } else {
+    window._reactReadySignal = true;
   }
 </script>
 </body>
