@@ -1,176 +1,699 @@
-))}
-            </div>
-            
-            {buildHistoryGroups().map(group => (
-              <div key={group.key} style={{ marginBottom: 16 }} className="card fade-in">
-                <div onClick={() => toggleGroup(group.key)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                  <span style={{ fontWeight: 600 }}>{group.label}</span>
-                  <span style={{ fontSize: 12 }}>
-                    Net: <span style={{ color: group.sales - group.expenses >= 0 ? SALE_GREEN : EXP_RED }}>{fmt(group.sales - group.expenses)}</span>
-                    {' '}<i className={`ti ti-chevron-${collapsedGroups[group.key] ? 'up' : 'down'}`} style={{ color: 'var(--color-text-tertiary)', marginLeft: 4 }} />
-                  </span>
-                </div>
-                
-                {!collapsedGroups[group.key] && (
-                  <div style={{ marginTop: 12, borderTop: '1px solid var(--color-border-secondary)', paddingTop: 12 }}>
-                    {group.entries.map(e => (
-                      <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--color-border-tertiary)" }}>
-                        <div>
-                          <span style={{ fontWeight: 500, fontSize: 13 }}>{e.category}</span>
-                          <small style={{ color: 'var(--color-text-secondary)', display: 'block', fontSize: 11 }}>
-                            {histGroup !== 'day' ? `${displayDate(e.dateStr)} • ` : ''}{e.time} {e.note && `• ${e.note}`}
-                          </small>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: 600, fontSize: 13 }}>
-                            {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
-                          </span>
-                          <button onClick={() => setDeleteId({ id: e.id, dateStr: e.dateStr })} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>
-                            <i className="ti ti-trash" style={{ fontSize: 14 }} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {buildHistoryGroups().length === 0 && <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No history found for this period.</p>}
-          </div>
-        )}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F6E56" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sales Tracker" />
+  <meta name="description" content="Track your daily sales and expenses — synced in real time" />
+  <title>Sales Tracker ☁️</title>
 
-        {/* INVENTORY VIEW */}
-        {view === "inventory" && (
-          <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">{invEditId ? "Edit Inventory Item" : "Add New Item"}</p>
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <input type="text" placeholder="Item Name" value={invForm.name} onChange={e => setInvForm({...invForm, name: e.target.value})} style={{ gridColumn: "1 / -1" }} />
-                <input type="text" placeholder="SKU/Code (opt)" value={invForm.sku} onChange={e => setInvForm({...invForm, sku: e.target.value})} />
-                <input type="number" placeholder="Price (opt)" value={invForm.price} onChange={e => setInvForm({...invForm, price: e.target.value})} />
-                <input type="number" placeholder="Current Qty" value={invForm.qty} onChange={e => setInvForm({...invForm, qty: e.target.value})} />
-                <input type="number" placeholder="Low Alert At" value={invForm.low} onChange={e => setInvForm({...invForm, low: e.target.value})} />
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                <button onClick={addOrUpdateInventory} style={{ flex: 1, padding: 12, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                  {invEditId ? "Save Changes" : "Add to Inventory"}
-                </button>
-                {invEditId && (
-                  <button onClick={() => { setInvEditId(null); setInvForm({ name: "", sku: "", qty: "", price: "", low: "" }); }} style={{ padding: 12, background: "#E5E7EB", color: "#374151", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </div>
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tablericons/3.19.0/webfont/tabler-icons.min.css" />
 
-            <p className="section-label">Current Stock</p>
-            {inventory.length === 0 ? (
-              <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>Your inventory is empty.</p>
-            ) : (
-              inventory.map(item => (
-                <div key={item.id} className="card" style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <span style={{ fontWeight: 600, fontSize: 15 }}>{item.name}</span>
-                      {item.sku && <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>#{item.sku}</span>}
-                      <div style={{ marginTop: 4 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: item.qty <= (item.low || 5) ? EXP_RED : "var(--color-text-primary)" }}>
-                          {item.qty} in stock
-                        </span>
-                        {item.qty <= (item.low || 5) && <span className="low-badge" style={{ marginLeft: 8 }}>Low Stock</span>}
-                      </div>
-                      {item.price > 0 && <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>Price: {fmt(item.price)}</div>}
-                    </div>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button onClick={() => setStockAdjId(item.id)} style={{ padding: "4px 8px", background: "#E0F2FE", color: "#0369A1", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>± Qty</button>
-                      <button onClick={() => startEdit(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 4 }}><i className="ti ti-pencil" /></button>
-                      <button onClick={() => setInvDeleteId(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-danger)", padding: 4 }}><i className="ti ti-trash" /></button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+  <style>
+    :root {
+      --color-text-primary: #111827;
+      --color-text-secondary: #6B7280;
+      --color-text-tertiary: #9CA3AF;
+      --color-text-success: #065F46;
+      --color-text-danger: #991B1B;
+      --color-text-info: #1D4ED8;
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #F9FAFB;
+      --color-background-success: #ECFDF5;
+      --color-background-danger: #FEF2F2;
+      --color-border-primary: #D1D5DB;
+      --color-border-secondary: #E5E7EB;
+      --color-border-tertiary: #F3F4F6;
+      --color-border-danger: #FCA5A5;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --border-radius-sm: 6px;
+      --border-radius-md: 10px;
+      --border-radius-lg: 14px;
+    }
 
-        {/* CATEGORIES VIEW */}
-        {view === "categories" && (
-          <div className="fade-in" style={{ padding: "16px" }}>
-            <p className="section-label">Manage Categories</p>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button onClick={() => setCatMgmt({ ...catMgmt, type: "sale" })} style={{ flex: 1, padding: 8, background: catMgmt.type === "sale" ? SALE_GREEN : "transparent", color: catMgmt.type === "sale" ? "white" : "var(--color-text-secondary)", border: `1px solid ${catMgmt.type === "sale" ? SALE_GREEN : "var(--color-border-secondary)"}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Sales</button>
-                <button onClick={() => setCatMgmt({ ...catMgmt, type: "expense" })} style={{ flex: 1, padding: 8, background: catMgmt.type === "expense" ? EXP_RED : "transparent", color: catMgmt.type === "expense" ? "white" : "var(--color-text-secondary)", border: `1px solid ${catMgmt.type === "expense" ? EXP_RED : "var(--color-border-secondary)"}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Expenses</button>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input type="text" placeholder="New category name" value={catMgmt.newName} onChange={e => setCatMgmt({ ...catMgmt, newName: e.target.value })} style={{ flex: 1 }} />
-                <button onClick={addCategory} style={{ padding: "0 16px", background: "#111827", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Add</button>
-              </div>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {categories[catMgmt.type].map(c => (
-                <span key={c} className="pill-tag fade-in">
-                  {c}
-                  <i onClick={() => removeCategory(catMgmt.type, c)} className="ti ti-x" style={{ cursor: "pointer", color: "var(--color-text-tertiary)" }} />
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        {/* MODALS */}
-        {deleteId && (
-          <div className="modal-overlay" onClick={() => setDeleteId(null)}>
-            <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
-              <p style={{ margin: "0 0 8px", fontWeight: 600, fontSize: 16 }}>Delete Entry?</p>
-              <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--color-text-secondary)" }}>Are you sure you want to delete this transaction? This cannot be undone.</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: 12, background: "#E5E7EB", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={confirmDeleteEntry} style={{ flex: 1, padding: 12, background: EXP_RED, color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Delete</button>
-              </div>
-            </div>
-          </div>
-        )}
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--color-background-primary);
+      color: var(--color-text-primary);
+      font-family: var(--font-sans);
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
 
-        {invDeleteId && (
-          <div className="modal-overlay" onClick={() => setInvDeleteId(null)}>
-            <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
-              <p style={{ margin: "0 0 8px", fontWeight: 600, fontSize: 16 }}>Remove Item?</p>
-              <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--color-text-secondary)" }}>Are you sure you want to remove this item from your inventory?</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setInvDeleteId(null)} style={{ flex: 1, padding: 12, background: "#E5E7EB", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={async () => { await saveInventory(inventory.filter(i => i.id !== invDeleteId)); setInvDeleteId(null); }} style={{ flex: 1, padding: 12, background: EXP_RED, color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Remove</button>
-              </div>
-            </div>
-          </div>
-        )}
+    #root {
+      min-height: 100dvh;
+      max-width: 460px;
+      margin: 0 auto;
+    }
 
-        {stockAdjId && (
-          <div className="modal-overlay" onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }}>
-            <div className="modal-content fade-in" onClick={e => e.stopPropagation()}>
-              <p style={{ margin: "0 0 16px", fontWeight: 600, fontSize: 16 }}>Adjust Stock Quantity</p>
-              <input type="number" placeholder="Change amount (e.g. 5, -2)" value={stockAdj.delta} onChange={e => setStockAdj({ ...stockAdj, delta: e.target.value })} style={{ marginBottom: 12 }} />
-              <input type="text" placeholder="Reason (optional)" value={stockAdj.note} onChange={e => setStockAdj({ ...stockAdj, note: e.target.value })} style={{ marginBottom: 20 }} />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => { setStockAdjId(null); setStockAdj({ delta: "", note: "" }); }} style={{ flex: 1, padding: 12, background: "#E5E7EB", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={applyStockAdj} style={{ flex: 1, padding: 12, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>Apply Update</button>
-              </div>
-            </div>
-          </div>
-        )}
+    .safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
-      </div>
-    );
-  }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes slideUp  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes shake    { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
 
-  const root = ReactDOM.createRoot(document.getElementById('root'));
-  window._startReact = () => root.render(<SalesTracker />);
-  
-  if (window._firebaseReady) {
-    window._startReact();
-  } else {
-    window._reactReadySignal = true;
-  }
+    .fade-in    { animation: slideUp 0.2s ease; }
+    .shake      { animation: shake 0.35s ease; }
+
+    .entry-row:hover, .entry-row:active { background: var(--color-background-secondary) !important; }
+    .btn-tap:active { transform: scale(0.97); }
+
+    .tab-btn {
+      flex: 1; padding: 8px 4px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: 11px; font-weight: 500;
+      border-bottom: 2px solid transparent;
+      color: var(--color-text-secondary);
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .tab-btn.active { color: #0F6E56; border-color: #0F6E56; }
+
+    .pill-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 500;
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-secondary);
+      color: var(--color-text-primary);
+    }
+    .low-badge  { display:inline-block; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:600; background:#FEF3C7; color:#92400E; }
+    .out-badge  { display:inline-block; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:600; background:#FEE2E2; color:#991B1B; }
+
+    input, select, textarea {
+      padding: 10px 12px;
+      border-radius: var(--border-radius-md);
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-primary);
+      color: var(--color-text-primary);
+      font-size: 14px; outline: none;
+      width: 100%; font-family: var(--font-sans);
+    }
+    input:focus, select:focus {
+      border-color: #0F6E56;
+      box-shadow: 0 0 0 2px rgba(15,110,86,0.12);
+    }
+
+    .section-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin: 0 0 6px;
+    }
+    .card {
+      background: var(--color-background-secondary);
+      border-radius: var(--border-radius-md);
+      padding: 14px;
+    }
+    .progress-bar  { height:6px; border-radius:3px; background:var(--color-border-tertiary); overflow:hidden; margin-top:6px; }
+    .progress-fill { height:100%; border-radius:3px; background:#0F6E56; transition:width 0.4s ease; }
+
+    .pin-key {
+      width: 64px; height: 56px;
+      border-radius: var(--border-radius-md);
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-background-secondary);
+      cursor: pointer; font-size: 18px; font-weight: 600;
+      color: var(--color-text-primary);
+      font-family: var(--font-sans);
+      transition: all 0.1s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pin-key:active { transform: scale(0.93); background: var(--color-border-secondary); }
+    .pin-key.danger { border-color: var(--color-border-danger); color: var(--color-text-danger); }
+
+    .sync-dot {
+      width:8px; height:8px; border-radius:50%; background:#10B981;
+      display:inline-block; margin-right:5px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .sync-dot.offline { background:#EF4444; animation:none; }
+
+    /* Floating Fixed Bottom Bar Styling */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 460px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 0.5px solid var(--color-border-secondary);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+      z-index: 100;
+    }
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: none;
+      border: none;
+      color: var(--color-text-secondary);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      gap: 2px;
+    }
+    .bottom-nav-item.active {
+      color: #0F6E56;
+    }
+
+    /* Simple Modal Styles */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4); display: flex; align-items: center;
+      justify-content: center; padding: 20px; z-index: 200;
+    }
+    .modal-content {
+      background: white; border-radius: var(--border-radius-lg);
+      padding: 20px; width: 100%; max-width: 360px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Connecting splash -->
+<div id="setup-screen" style="display:flex;align-items:center;justify-content:center;min-height:100dvh;font-family:sans-serif;">
+  <div style="text-align:center;padding:40px 24px;">
+    <div style="font-size:48px;margin-bottom:12px;">💹</div>
+    <div style="width:28px;height:28px;border:2px solid #E5E7EB;border-top:2px solid #0F6E56;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+    <p style="margin:0;font-size:14px;color:#6B7280;">Connecting to cloud…</p>
+  </div>
+</div>
+
+<!-- Main app screen -->
+<div id="app-screen" style="display:none;">
+  <!-- Sync status bar -->
+  <div id="sync-bar" style="background:#F0FDF4;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid #D1FAE5;max-width:460px;margin:0 auto;">
+    <span style="font-size:11px;color:#065F46;font-weight:600;display:flex;align-items:center;">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">Connected — real-time sync on</span>
+    </span>
+  </div>
+  <div id="root"></div>
+</div>
+
+<!-- React + Babel + Firebase Dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyACGvhzECNTVzMgNRJMxGei0480kdI9BQc",
+    authDomain: "premier-sales-tracker-b7920.firebaseapp.com",
+    databaseURL: "https://premier-sales-tracker-b7920-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "premier-sales-tracker-b7920",
+    storageBucket: "premier-sales-tracker-b7920.firebasestorage.app",
+    messagingSenderId: "1024596124716",
+    appId: "1:1024596124716:web:c4ff43cb0fe015db1fdd89"
+  };
+
+  window._fbDb = null;
+  window._firebaseReady = false;
+
+  window._fb = {
+    async get(key) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      const snap = await getDoc(ref);
+      return snap.exists() ? { key, value: JSON.stringify(snap.data().v) } : null;
+    },
+    async set(key, value) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      await setDoc(ref, { v: JSON.parse(value) });
+      return { key, value };
+    },
+    async delete(key) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      await setDoc(ref, { v: null });
+      return { key, deleted: true };
+    },
+    subscribe(key, callback) {
+      const ref = doc(window._fbDb, "salestracker", key);
+      return onSnapshot(ref, (snap) => {
+        callback(snap.exists() ? JSON.stringify(snap.data().v) : null);
+      });
+    }
+  };
+
+  function launchApp() {
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "block";
+    window.storage = window._fb;
+    window._firebaseReady = true;
+    if (window._startReact) {
+      window._startReact();
+    }
+  }
+
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    window._fbDb = getFirestore(app);
+    if (window._reactReadySignal) {
+      launchApp();
+    } else {
+      window._firebaseLoadedSignal = true;
+    }
+  } catch(e) {
+    document.getElementById("setup-screen").innerHTML =
+      `<div style="padding:40px 24px;text-align:center;font-family:sans-serif;">
+        <p style="font-size:32px;">⚠️</p>
+        <p style="font-size:16px;font-weight:700;">Could not connect to Firebase</p>
+        <p style="font-size:13px;color:#6B7280;">${e.message}</p>
+        <p style="font-size:12px;color:#9CA3AF;">Make sure Firestore is enabled in the Firebase console.</p>
+      </div>`;
+  }
 </script>
-</body>
-</html>
+
+<script type="text/babel">
+  const { useState, useEffect, useRef } = React;
+
+  const DEFAULT_CATEGORIES = {
+    sale: ["Product sale", "Service", "Subscription", "Refund received", "Other income"],
+    expense: ["Supplies", "Rent", "Utilities", "Salary", "Marketing", "Transport", "Food", "Other"],
+  };
+
+  const fmt = (n) => new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+  const dateKey = (d) => d.toISOString().slice(0, 10);
+  const displayDate = (key) => {
+    const today = dateKey(new Date());
+    const yesterday = dateKey(new Date(Date.now() - 86400000));
+    if (key === today) return "Today";
+    if (key === yesterday) return "Yesterday";
+    return new Date(key + "T12:00:00").toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" });
+  };
+
+  const SALE_GREEN = "#0F6E56";
+  const EXP_RED = "#993C1D";
+
+  function SalesTracker() {
+    const [entries, setEntries] = useState({});
+    const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+    const [inventory, setInventory] = useState([]);
+    const [currentDate, setCurrentDate] = useState(dateKey(new Date()));
+    const [view, setView] = useState("dashboard");
+    const [form, setForm] = useState({ type: "sale", amount: "", category: "", note: "" });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [deleteId, setDeleteId] = useState(null); // Objects structured like { id, dateStr }
+    const [syncStatus, setSyncStatus] = useState("connected");
+
+    const [histGroup, setHistGroup] = useState("day");
+    const [collapsedGroups, setCollapsedGroups] = useState({});
+    const [catMgmt, setCatMgmt] = useState({ type: "sale", newName: "" });
+
+    const [invForm, setInvForm] = useState({ name: "", sku: "", qty: "", price: "", low: "" });
+    const [invEditId, setInvEditId] = useState(null);
+    const [invDeleteId, setInvDeleteId] = useState(null);
+    const [stockAdjId, setStockAdjId] = useState(null);
+    const [stockAdj, setStockAdj] = useState({ delta: "", note: "" });
+
+    const unsubscribers = useRef([]);
+
+    useEffect(() => {
+      let mounted = true;
+      const storage = window._fb;
+
+      if (!storage) return;
+
+      const unsub1 = storage.subscribe("entries", (raw) => {
+        if (!mounted) return;
+        setEntries(raw ? JSON.parse(raw) : {});
+      });
+      const unsub2 = storage.subscribe("categories", (raw) => {
+        if (!mounted) return;
+        setCategories(raw ? JSON.parse(raw) : DEFAULT_CATEGORIES);
+      });
+      const unsub3 = storage.subscribe("inventory", (raw) => {
+        if (!mounted) return;
+        setInventory(raw ? JSON.parse(raw) : []);
+      });
+
+      unsubscribers.current = [unsub1, unsub2, unsub3];
+
+      Promise.all([
+        storage.get("entries").catch(() => null),
+        storage.get("categories").catch(() => null),
+        storage.get("inventory").catch(() => null),
+      ]).then(([eRes, cRes, iRes]) => {
+        if (!mounted) return;
+        if (eRes) setEntries(JSON.parse(eRes.value));
+        if (cRes) setCategories(JSON.parse(cRes.value));
+        if (iRes) setInventory(JSON.parse(iRes.value));
+        setLoading(false);
+      }).catch(() => { if (mounted) setLoading(false); });
+
+      const onOnline = () => { 
+        setSyncStatus("connected"); 
+        const dot = document.querySelector(".sync-dot");
+        if (dot) dot.classList.remove("offline"); 
+        const lbl = document.getElementById("sync-label");
+        if (lbl) lbl.textContent = "Connected — real-time sync on"; 
+      };
+      const onOffline = () => { 
+        setSyncStatus("offline"); 
+        const dot = document.querySelector(".sync-dot");
+        if (dot) dot.classList.add("offline"); 
+        const lbl = document.getElementById("sync-label");
+        if (lbl) lbl.textContent = "Offline — changes will sync when reconnected"; 
+      };
+      window.addEventListener("online", onOnline);
+      window.addEventListener("offline", onOffline);
+
+      return () => {
+        mounted = false;
+        unsubscribers.current.forEach(u => u && u());
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+      };
+    }, []);
+
+    const saveEntries = async (updated) => {
+      setEntries(updated);
+      setSaving(true);
+      try { await window._fb.set("entries", JSON.stringify(updated)); } catch {}
+      setSaving(false);
+    };
+
+    const saveCategories = async (updated) => {
+      setCategories(updated);
+      try { await window._fb.set("categories", JSON.stringify(updated)); } catch {}
+    };
+
+    const saveInventory = async (updated) => {
+      setInventory(updated);
+      try { await window._fb.set("inventory", JSON.stringify(updated)); } catch {}
+    };
+
+    const dayEntries = entries[currentDate] || [];
+    const sales = dayEntries.filter(e => e.type === "sale").reduce((s, e) => s + e.amount, 0);
+    const expenses = dayEntries.filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0);
+    const net = sales - expenses;
+
+    const addEntry = async () => {
+      if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) return;
+      const defaultCat = form.type === "sale" ? "Other income" : "Other";
+      const entry = {
+        id: Date.now().toString(),
+        type: form.type,
+        amount: parseFloat(form.amount),
+        category: form.category || defaultCat,
+        note: form.note,
+        time: new Date().toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }),
+      };
+      const updated = { ...entries, [currentDate]: [entry, ...(entries[currentDate] || [])] };
+      await saveEntries(updated);
+      setForm({ type: form.type, amount: "", category: "", note: "" });
+      setView("dashboard");
+    };
+
+    const confirmDeleteEntry = async () => {
+      if (!deleteId) return;
+      const { id, dateStr } = deleteId;
+      const updated = { ...entries, [dateStr]: (entries[dateStr] || []).filter(e => e.id !== id) };
+      await saveEntries(updated);
+      setDeleteId(null);
+    };
+
+    const shiftDate = (days) => {
+      const d = new Date(currentDate + "T12:00:00");
+      d.setDate(d.getDate() + days);
+      setCurrentDate(dateKey(d));
+    };
+
+    const isToday = currentDate === dateKey(new Date());
+
+    const addCategory = async () => {
+      const name = catMgmt.newName.trim();
+      if (!name) return;
+      if (categories[catMgmt.type].includes(name)) return;
+      const updated = { ...categories, [catMgmt.type]: [...(categories[catMgmt.type] || []), name] };
+      await saveCategories(updated);
+      setCatMgmt(c => ({ ...c, newName: "" }));
+    };
+
+    const removeCategory = async (type, name) => {
+      const updated = { ...categories, [type]: categories[type].filter(c => c !== name) };
+      await saveCategories(updated);
+    };
+
+    const addOrUpdateInventory = async () => {
+      if (!invForm.name.trim() || !invForm.qty || isNaN(invForm.qty)) return;
+      if (invEditId) {
+        const updated = inventory.map(item =>
+          item.id === invEditId ? { 
+            ...item, 
+            name: invForm.name.trim(), 
+            sku: invForm.sku.trim(), 
+            qty: parseInt(invForm.qty), 
+            price: parseFloat(invForm.price) || 0, 
+            low: parseInt(invForm.low) || 5 
+          } : item
+        );
+        await saveInventory(updated);
+        setInvEditId(null);
+      } else {
+        const item = { 
+          id: Date.now().toString(), 
+          name: invForm.name.trim(), 
+          sku: invForm.sku.trim(), 
+          qty: parseInt(invForm.qty), 
+          price: parseFloat(invForm.price) || 0, 
+          low: parseInt(invForm.low) || 5,
+          history: []
+        };
+        await saveInventory([...inventory, item]);
+      }
+      setInvForm({ name: "", sku: "", qty: "", price: "", low: "" });
+    };
+
+    const applyStockAdj = async () => {
+      const delta = parseInt(stockAdj.delta);
+      if (isNaN(delta) || delta === 0) return;
+      const updated = inventory.map(item => {
+        if (item.id !== stockAdjId) return item;
+        const newQty = Math.max(0, item.qty + delta);
+        const histEntry = { 
+          date: new Date().toLocaleDateString("en-KE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }), 
+          delta, 
+          note: stockAdj.note || "Manual correction", 
+          qty: newQty 
+        };
+        return { ...item, qty: newQty, history: [histEntry, ...(item.history || [])].slice(0, 10) };
+      });
+      await saveInventory(updated);
+      setStockAdjId(null);
+      setStockAdj({ delta: "", note: "" });
+    };
+
+    const startEdit = (item) => {
+      setInvForm({ name: item.name, sku: item.sku || "", qty: String(item.qty), price: String(item.price || ""), low: String(item.low || "") });
+      setInvEditId(item.id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const lowStockItems = inventory.filter(i => i.qty <= (i.low || 5));
+
+    const getGroupKey = (dateStr, mode) => {
+      const d = new Date(dateStr + "T12:00:00");
+      if (mode === "day") return dateStr;
+      if (mode === "month") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (mode === "year") return `${d.getFullYear()}`;
+      if (mode === "week") {
+        const mon = new Date(d);
+        mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return `week::${mon.toISOString().slice(0, 10)}`;
+      }
+      return dateStr;
+    };
+
+    const getGroupLabel = (key, mode) => {
+      if (mode === "day") return displayDate(key);
+      if (mode === "month") {
+        const [y, m] = key.split("-");
+        return new Date(+y, +m - 1, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+      }
+      if (mode === "year") return key;
+      if (mode === "week") {
+        const monStr = key.replace("week::", "");
+        const mon = new Date(monStr + "T12:00:00");
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+        const fmtD = (d) => d.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
+        return `${fmtD(mon)} – ${fmtD(sun)}`;
+      }
+      return key;
+    };
+
+    const buildHistoryGroups = () => {
+      const flat = [];
+      Object.entries(entries).forEach(([dateStr, dayArr]) => {
+        dayArr.forEach(e => flat.push({ ...e, dateStr }));
+      });
+      flat.sort((a, b) => b.dateStr.localeCompare(a.dateStr) || b.id.localeCompare(a.id));
+      const groupMap = {};
+      const groupOrder = [];
+      flat.forEach(e => {
+        const key = getGroupKey(e.dateStr, histGroup);
+        if (!groupMap[key]) { groupMap[key] = []; groupOrder.push(key); }
+        groupMap[key].push(e);
+      });
+      return groupOrder.map(key => ({
+        key,
+        label: getGroupLabel(key, histGroup),
+        entries: groupMap[key],
+        sales: groupMap[key].filter(e => e.type === "sale").reduce((s, e) => s + e.amount, 0),
+        expenses: groupMap[key].filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0),
+      }));
+    };
+
+    const toggleGroup = (key) => setCollapsedGroups(c => ({ ...c, [key]: !c[key] }));
+
+    if (loading) return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 12 }}>
+        <div style={{ width: 32, height: 32, border: "2px solid var(--color-border-secondary)", borderTop: `2px solid ${SALE_GREEN}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Connecting to cloud…</p>
+      </div>
+    );
+
+    return (
+      <div style={{ fontFamily: "var(--font-sans)", paddingBottom: 110 }} className="safe-top">
+        
+        {/* Top Header Bar */}
+        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", justifyBetween: "space-between", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => shiftDate(-1)} style={{ border: "none", background: "none", cursor: "pointer", padding: 6, color: "var(--color-text-secondary)" }}>
+              <i className="ti ti-chevron-left" style={{ fontSize: 18 }} />
+            </button>
+            <span style={{ fontWeight: 600, fontSize: 15 }}>{displayDate(currentDate)}</span>
+            <button onClick={() => shiftDate(1)} disabled={isToday} style={{ border: "none", background: "none", cursor: "pointer", padding: 6, color: isToday ? "var(--color-border-secondary)" : "var(--color-text-secondary)" }}>
+              <i className="ti ti-chevron-right" style={{ fontSize: 18 }} />
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {lowStockItems.length > 0 && (
+              <button onClick={() => setView("inventory")} style={{ border: "none", background: "#FEF3C7", borderRadius: 20, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#92400E" }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} /> {lowStockItems.length} low
+              </button>
+            )}
+            {!isToday && (
+              <button onClick={() => setCurrentDate(dateKey(new Date()))} style={{ fontSize: 12, color: "var(--color-text-info)", background: "none", border: "none", cursor: "pointer" }}>
+                Today
+              </button>
+            )}
+            {saving && <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Saving…</span>}
+          </div>
+        </div>
+
+        {/* Sub-header navigation tabs */}
+        <div style={{ display: "flex", borderBottom: "0.5px solid var(--color-border-tertiary)", margin: "12px 0 0", padding: "0 8px" }}>
+          <button onClick={() => setView("dashboard")} className={`tab-btn ${view === "dashboard" ? "active" : ""}`}>Summary</button>
+          <button onClick={() => setView("add")} className={`tab-btn ${view === "add" ? "active" : ""}`}>Add Entry</button>
+          <button onClick={() => setView("history")} className={`tab-btn ${view === "history" ? "active" : ""}`}>History</button>
+          <button onClick={() => setView("inventory")} className={`tab-btn ${view === "inventory" ? "active" : ""}`}>Inventory</button>
+          <button onClick={() => setView("categories")} className={`tab-btn ${view === "categories" ? "active" : ""}`}>Categories</button>
+        </div>
+
+        {/* DASHBOARD SUMMARY VIEW */}
+        {view === "dashboard" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <div style={{ background: net >= 0 ? "var(--color-background-success)" : "var(--color-background-danger)", borderRadius: "var(--border-radius-lg)", padding: "20px", marginBottom: 12, textAlign: "center" }}>
+              <p style={{ fontSize: 11, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)", margin: "0 0 4px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>
+                Net {net >= 0 ? "Profit" : "Loss"}
+              </p>
+              <p style={{ fontSize: 32, fontWeight: 600, margin: 0, color: net >= 0 ? "var(--color-text-success)" : "var(--color-text-danger)" }}>{fmt(Math.abs(net))}</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <i className="ti ti-arrow-up-circle" style={{ fontSize: 16, color: SALE_GREEN }} />
+                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>Sales</span>
+                </div>
+                <p style={{ fontSize: 20, fontWeight: 600, margin: 0, color: SALE_GREEN }}>{fmt(sales)}</p>
+                <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", margin: "2px 0 0" }}>{dayEntries.filter(e => e.type === "sale").length} entries</p>
+              </div>
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <i className="ti ti-arrow-down-circle" style={{ fontSize: 16, color: EXP_RED }} />
+                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>Expenses</span>
+                </div>
+                <p style={{ fontSize: 20, fontWeight: 600, margin: 0, color: EXP_RED }}>{fmt(expenses)}</p>
+                <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", margin: "2px 0 0" }}>{dayEntries.filter(e => e.type === "expense").length} entries</p>
+              </div>
+            </div>
+            
+            {dayEntries.length > 0 ? (
+              <div>
+                <p className="section-label">Entries — {displayDate(currentDate)}</p>
+                {dayEntries.map(e => (
+                  <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--color-border-secondary)" }}>
+                    <div>
+                      <span style={{ fontWeight: 500, fontSize: 14 }}>{e.category}</span>
+                      <small style={{ color: 'var(--color-text-secondary)', display: 'block', fontSize: 11 }}>
+                        {e.time} {e.note && `• ${e.note}`}
+                      </small>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ color: e.type === "sale" ? SALE_GREEN : EXP_RED, fontWeight: "bold", fontSize: 14 }}>
+                        {e.type === "sale" ? "+" : "-"}{fmt(e.amount)}
+                      </span>
+                      <button onClick={() => setDeleteId({ id: e.id, dateStr: currentDate })} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>
+                        <i className="ti ti-trash" style={{ fontSize: 14 }} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p style={{ textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, marginTop: 24 }}>No entries recorded for this date.</p>}
+          </div>
+        )}
+
+        {/* ADD ENTRY VIEW */}
+        {view === "add" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <p className="section-label">Add Transaction Record</p>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <button onClick={() => setForm({ ...form, type: "sale" })} style={{ flex: 1, padding: 12, background: form.type === "sale" ? SALE_GREEN : "#eee", color: form.type === "sale" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
+                + Sale
+              </button>
+              <button onClick={() => setForm({ ...form, type: "expense" })} style={{ flex: 1, padding: 12, background: form.type === "expense" ? EXP_RED : "#eee", color: form.type === "expense" ? "white" : "#333", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>
+                - Expense
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <input type="number" placeholder="Amount (KES)" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+                <option value="">Select Category</option>
+                {categories[form.type].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <input type="text" placeholder="Add optional description note..." value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} />
+              <button onClick={addEntry} style={{ padding: 14, background: "#0F6E56", color: "white", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", marginTop: 8 }}>Save Entry</button>
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY VIEW */}
+        {view === "history" && (
+          <div className="fade-in" style={{ padding: "16px" }}>
+            <p className="section-label">Transaction History</p>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+              {["day", "week", "month", "year"].map(m => (
+                <button key={m} onClick={() => { setHistGroup(m); setCollapsedGroups({}); }} style={{ padding: "6px 12px", border: "1px solid", borderColor: histGroup === m ? SALE_GREEN : "var(--color-border-secondary)", background: "white", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: histGroup === m ? 600 : 500 }}>
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+             
