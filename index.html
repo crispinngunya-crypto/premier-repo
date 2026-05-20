@@ -172,15 +172,15 @@
   import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   // ── Pre-configured for Premier Sales Tracker ──
-  const FIREBASE_CONFIG = {
-    apiKey:            "AIzaSyB9ksaO6V8PCSdd3QNOA_CLsixuzSpYCyU",
-    authDomain:        "premier-sales-tracker.firebaseapp.com",
-    projectId:         "premier-sales-tracker",
-    storageBucket:     "premier-sales-tracker.firebasestorage.app",
-    messagingSenderId: "19150349207",
-    appId:             "1:19150349207:android:108dd041217aff6e439ad2",
-    databaseURL:       "https://premier-sales-tracker-default-rtdb.europe-west1.firebasedatabase.app"
-  };
+  const firebaseConfig = {
+  apiKey: "AIzaSyBT2lxbJUQMBaMElHkCRF_4uCj16cQaR8E",
+  authDomain: "premier-sales-tracker.firebaseapp.com",
+  databaseURL: "https://premier-sales-tracker-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "premier-sales-tracker",
+  storageBucket: "premier-sales-tracker.firebasestorage.app",
+  messagingSenderId: "19150349207",
+  appId: "1:19150349207:web:f8fd886435332aa7439ad2"
+};
 
   window._fbDb = null;
   window._firebaseReady = false;
